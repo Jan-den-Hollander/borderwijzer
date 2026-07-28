@@ -1,0 +1,1193 @@
+<!--
+================================================================================
+  © Jan den Hollander — jandenhollander@duck.com
+  GitHub: https://github.com/Jan-den-Hollander
+  Projectnaam: BorderWijzer
+  Versie: 3.0 | Datum: 2026-07-27
+  Nieuw in 3.0:
+  - Foto's-tabblad (huidige situatie + inspiratie, max 4 elk) — zoals BalkonWijzer,
+    zodat de AI veel meer context krijgt dan een leek onder woorden kan brengen.
+  - Border-diepteprofiel in Basis: achtergrond (vrij/eilandbed, haag, tuinmuur,
+    huismuur, schutting) + aangrenzend voor/achter (pad/gazon) → bepaalt zelf of
+    het schema laag-naar-hoog (eenzijdig) of laag-hoog-laag (eilandbed) opbouwt.
+  - Het beplantingsschema wordt niet langer uit een interne plantendatabase
+    getekend, maar uit de genummerde legenda van het opgeslagen AI-ontwerp
+    (honingraat/hexagon-vulling; bomen/solitairs als los icoon). De offline
+    plantenlijst blijft als snelle, optionele suggestie beschikbaar.
+  - PDF-rapport (kaart + schema + legenda + foto's + volledige AI-tekst) om te
+    delen, bewaren of buiten uit te printen.
+
+  LICENTIE / LICENSE (NL | EN | IT)
+  NL: Dit werk is auteursrechtelijk beschermd. Vrij te gebruiken, delen en
+  verspreiden voor niet-commerciële doeleinden, ongewijzigd, met vermelding
+  van de oorspronkelijke auteur. Commercieel gebruik, wijziging, verkoop of
+  integratie in betaalde producten is verboden zonder schriftelijke
+  toestemming. Hulp is en blijft gratis.
+  EN: This work is protected by copyright. Free to use, share and distribute
+  for non-commercial purposes only, unmodified, with attribution. Commercial
+  use, modification or sale is prohibited without written consent.
+  IT: Quest'opera è protetta da diritto d'autore. Uso libero, non commerciale,
+  non modificato, con attribuzione. Uso commerciale vietato senza consenso.
+
+  Originele broncode: https://github.com/Jan-den-Hollander
+  Alle rechten voorbehouden © Jan den Hollander
+================================================================================
+  ⚠️ INTEGRITEITSWAARSCHUWING: dit bestand bevat een integriteitscontrole op
+  projectnaam, footer en modal. Verwijdering of wijziging blokkeert de app.
+================================================================================
+-->
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="BorderWijzer">
+<meta name="theme-color" content="#2d5a27">
+<link rel="manifest" id="pwaManifestLink">
+<link rel="icon" id="pwaFavicon">
+<link rel="apple-touch-icon" id="pwaAppleIcon">
+<title>BorderWijzer</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Fraunces:ital,wght@0,300;0,600;1,300&display=swap');
+:root{--groen:#2d5a27;--lichtgroen:#4a7c42;--aarde:#8b6f47;--wit:#f5f2eb;--donker:#132110;--bloem:#c96a9c;--lijn:rgba(74,124,66,0.25);}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'IBM Plex Mono',monospace;background:var(--donker);color:var(--wit);min-height:100vh;overflow-x:hidden;padding-bottom:28px;}
+.header{background:var(--groen);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid var(--lichtgroen);position:sticky;top:0;z-index:100;}
+.header-title{font-family:'Fraunces',serif;font-size:1.25rem;font-weight:600;}
+.header-title span{font-style:italic;font-weight:300;color:#a8d4a0;}
+.proj-badge{font-size:.58rem;background:var(--donker);color:#a8d4a0;padding:4px 7px;border-radius:2px;text-transform:uppercase;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.tabs{display:flex;background:#0f1f0d;border-bottom:1px solid var(--lijn);overflow-x:auto;}
+.tab{flex:1;min-width:46px;padding:8px 1px;text-align:center;font-size:.38rem;letter-spacing:.02em;text-transform:uppercase;color:#6a9465;cursor:pointer;border:none;background:none;line-height:1.3;}
+.tab.active{color:var(--wit);background:var(--groen);border-bottom:2px solid #a8d4a0;}
+.screen{display:none;padding:16px;}
+.screen.active{display:block;}
+.card{background:#1e3a1a;border:1px solid var(--lijn);border-radius:4px;padding:16px;margin-bottom:12px;}
+.label{font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:#a8d4a0;margin-bottom:6px;}
+.inp,select.inp,textarea.inp{width:100%;background:#0f1f0d;border:1px solid var(--lijn);color:var(--wit);padding:10px 12px;font-family:'IBM Plex Mono',monospace;font-size:.85rem;border-radius:2px;margin-bottom:10px;}
+.inp:focus{outline:none;border-color:var(--lichtgroen);}
+.gps-row{display:flex;gap:8px;align-items:center;}
+.gps-display{flex:1;background:#0f1f0d;border:1px solid var(--lijn);padding:8px 12px;font-size:.7rem;color:#6a9465;border-radius:2px;}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 16px;font-family:'IBM Plex Mono',monospace;font-size:.75rem;letter-spacing:.06em;border:none;border-radius:2px;cursor:pointer;text-transform:uppercase;}
+.btn-primair{background:var(--groen);color:var(--wit);width:100%;padding:14px;font-size:.8rem;}
+.btn-primair:active{background:var(--lichtgroen);transform:scale(.98);}
+.btn-klein{background:#1e3a1a;color:#a8d4a0;border:1px solid var(--lijn);font-size:.65rem;padding:7px 14px;}
+.btn-gps{background:var(--aarde);color:#2a2213;font-size:.65rem;padding:8px 12px;flex-shrink:0;}
+.btn-gevaar{background:#4a1a1a;color:#e87070;border:1px solid #6a2a2a;}
+.btn-deel{background:#1a3a50;color:#70c8e8;border:1px solid #2a5a70;font-size:.7rem;padding:9px 10px;flex:1;}
+.btn-pdf{background:#4a2a10;color:#e8a860;border:1px solid #6a4020;font-size:.75rem;width:100%;padding:12px;}
+.btn-opslaan{background:var(--groen);color:var(--wit);font-size:.7rem;padding:9px 14px;width:100%;margin-top:6px;}
+.rij-knoppen{display:flex;gap:8px;margin-bottom:8px;}
+.chip-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;}
+.chip{background:#0f1f0d;border:1px solid var(--lijn);color:#a8d4a0;padding:7px 11px;border-radius:3px;font-size:.65rem;cursor:pointer;white-space:nowrap;}
+.chip.actief{background:var(--groen);border-color:var(--lichtgroen);color:var(--wit);}
+.chip.kleurchip.actief{color:#fff;}
+.chip.stijlchip{white-space:normal;text-align:left;line-height:1.4;flex-basis:100%;}
+#kaartContainer{height:320px;border-radius:4px;overflow:hidden;margin-bottom:10px;border:1px solid var(--lijn);}
+.kaart-geen{background:#1e3a1a;height:100%;display:flex;align-items:center;justify-content:center;color:#6a9465;font-size:.75rem;text-align:center;border-radius:4px;}
+.leaflet-popup-content-wrapper{background:#1e3a1a !important;color:var(--wit) !important;border:1px solid var(--lijn);border-radius:4px !important;font-family:'IBM Plex Mono',monospace;font-size:.7rem;}
+.leaflet-popup-tip{background:#1e3a1a !important;}
+.kaart-controls{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;}
+.oppervlak-bar{background:#0f1f0d;border:1px solid var(--lijn);border-radius:4px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+.oppervlak-getal{font-family:'Fraunces',serif;font-size:1.6rem;font-weight:600;color:var(--wit);}
+.oppervlak-lbl{font-size:.55rem;text-transform:uppercase;color:#6a9465;}
+.plant-item{background:#1e3a1a;border:1px solid var(--lijn);border-left:3px solid var(--lichtgroen);border-radius:0 4px 4px 0;padding:10px 12px;margin-bottom:8px;}
+.plant-naam{font-family:'Fraunces',serif;font-style:italic;font-size:.95rem;color:var(--wit);}
+.plant-latijn{font-size:.6rem;color:#6a9465;margin-bottom:4px;}
+.plant-meta{font-size:.68rem;color:#a8d4a0;line-height:1.6;}
+.badge{font-size:.55rem;padding:3px 7px;border-radius:2px;letter-spacing:.06em;text-transform:uppercase;font-weight:600;display:inline-block;margin-top:3px;margin-right:4px;}
+.badge-zon{background:#4a3a0a;color:#e8c070;}
+.badge-schaduw{background:#1a2a3a;color:#70c8e8;}
+.badge-droogte{background:#3a2a10;color:#d9a05c;}
+.badge-bol{background:#3a1a3a;color:#d980d9;}
+.badge-rol-structuur{background:#2a3a1a;color:#a8d470;}
+.badge-rol-matrix{background:#1a2f2a;color:#6ec9a8;}
+.badge-rol-accent{background:#3a1a2e;color:#e090c0;}
+.sectie-titel{font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:#6a9465;margin-bottom:10px;}
+.divider{border:none;border-top:1px solid var(--lijn);margin:14px 0;}
+.notif{position:fixed;bottom:32px;left:50%;transform:translateX(-50%);background:var(--groen);color:var(--wit);padding:10px 20px;border-radius:4px;font-size:.75rem;z-index:999;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;}
+.notif.zichtbaar{opacity:1;}
+.export-card{background:#1e3a1a;border:1px solid var(--lijn);border-radius:4px;padding:16px;margin-bottom:12px;text-align:center;}
+.export-desc{font-size:.7rem;color:#6a9465;line-height:1.6;margin-bottom:12px;}
+.stap-hint{font-size:.65rem;color:#6a9465;line-height:1.5;margin-bottom:8px;padding:6px 8px;background:#0f1f0d;border-radius:3px;}
+.schema-canvas{width:100%;height:220px;border-radius:4px;border:1px solid var(--lijn);background:#0f1f0d;display:block;margin-bottom:10px;}
+.tweekolom{display:flex;gap:8px;}
+.tweekolom .inp{margin-bottom:0;}
+.foto-zone{border:2px dashed var(--lijn);border-radius:6px;padding:22px 12px;text-align:center;color:#a8d4a0;font-size:.8rem;cursor:pointer;margin-bottom:8px;}
+.foto-zone small{display:block;color:#6a9465;font-size:.6rem;margin-top:6px;}
+.foto-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;}
+.foto-thumb{position:relative;border-radius:4px;overflow:hidden;aspect-ratio:1;border:1px solid var(--lijn);}
+.foto-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+.foto-verwijder{position:absolute;top:3px;right:3px;background:rgba(0,0,0,.6);color:#e87070;border:none;border-radius:50%;width:20px;height:20px;font-size:.7rem;cursor:pointer;line-height:1;}
+</style>
+</head>
+<body>
+<script>
+(function() {
+  try {
+    var svgIcoon = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="100" fill="#2d5a27"/><text x="256" y="340" font-family="Georgia, serif" font-size="240" font-weight="700" fill="#f5f2eb" text-anchor="middle">B</text></svg>';
+    var iconDataUrl = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgIcoon)));
+    var faviconEl = document.getElementById('pwaFavicon'); if (faviconEl) faviconEl.href = iconDataUrl;
+    var appleIconEl = document.getElementById('pwaAppleIcon'); if (appleIconEl) appleIconEl.href = iconDataUrl;
+    var manifest = {name:'BorderWijzer',short_name:'BorderWijzer',description:'Beplantingsadvies voor je vaste plantenborder — geïnspireerd op Chatto, Jekyll, Ter Linden, Oudolf en Ruys.',start_url:'.',scope:'.',display:'standalone',orientation:'portrait',background_color:'#132110',theme_color:'#2d5a27',
+      icons:[{src:iconDataUrl,sizes:'192x192',type:'image/svg+xml',purpose:'any'},{src:iconDataUrl,sizes:'512x512',type:'image/svg+xml',purpose:'any'},{src:iconDataUrl,sizes:'512x512',type:'image/svg+xml',purpose:'maskable'}]};
+    var manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
+    var manifestEl = document.getElementById('pwaManifestLink'); if (manifestEl) manifestEl.href = URL.createObjectURL(manifestBlob);
+    if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+      var swCode = "const CACHE='borderwijzer-cache-v3';self.addEventListener('install',e=>{self.skipWaiting();});self.addEventListener('activate',e=>{self.clients.claim();});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.open(CACHE).then(cache=>cache.match(e.request).then(cached=>{const netFetch=fetch(e.request).then(resp=>{if(resp&&resp.ok)cache.put(e.request,resp.clone());return resp;}).catch(()=>cached);return cached||netFetch;})));});";
+      var swUrl = URL.createObjectURL(new Blob([swCode], { type: 'application/javascript' }));
+      navigator.serviceWorker.register(swUrl).catch(function(e){console.error('SW fout:',e);});
+    }
+  } catch (e) { console.error('PWA-setup fout:', e); }
+})();
+</script>
+
+<div class="header">
+  <div class="header-title">Border<span>Wijzer</span></div>
+  <div class="proj-badge" id="projLabel">Geen project</div>
+</div>
+<div class="tabs">
+  <button class="tab active" onclick="toonScherm('start')">&#9881;<br>Start</button>
+  <button class="tab" onclick="toonScherm('kaart')">&#128506;<br>Kaart</button>
+  <button class="tab" onclick="toonScherm('fotos')">&#128247;<br>Foto's</button>
+  <button class="tab" onclick="toonScherm('basis')">&#128167;<br>Basis</button>
+  <button class="tab" onclick="toonScherm('stijl')">&#127912;<br>Stijl</button>
+  <button class="tab" onclick="toonScherm('voorstel')">&#127807;<br>Voorstel</button>
+  <button class="tab" onclick="toonScherm('export')">&#8599;<br>Export</button>
+</div>
+
+<!-- START -->
+<div id="scherm-start" class="screen active">
+  <div class="card">
+    <div class="label">&#127807; Projectnaam</div>
+    <input type="text" class="inp" id="projNaam" placeholder="bijv. Border zuidgevel">
+    <div class="label">Datum</div>
+    <input type="date" class="inp" id="datumInput">
+    <div class="label">&#127894; Grondslag</div>
+    <select class="inp" id="grondslagSelect">
+      <option value="">-- kies grondsoort --</option>
+      <option value="klei">Klei</option>
+      <option value="zand">Zand</option>
+      <option value="veen">Veen</option>
+      <option value="leem">Leem</option>
+      <option value="kalkrijk">Kalkrijk</option>
+      <option value="tuinaarde">Voedselrijke tuinaarde</option>
+    </select>
+  </div>
+  <button class="btn btn-primair" onclick="startProject()">&#9654; Start nieuw project</button>
+  <hr class="divider">
+  <div class="sectie-titel">Werkwijze</div>
+  <div class="card" style="background:#0f1f0d;border-color:var(--lijn)">
+    <strong>1. Start</strong> &#8594; projectnaam, grondslag<br>
+    <strong>2. Kaart</strong> &#8594; GPS, border intekenen, oppervlak<br>
+    <strong>3. Foto's</strong> &#8594; huidige situatie + inspiratie — geeft de AI context die je zelf lastig onder woorden brengt<br>
+    <strong>4. Basis</strong> &#8594; licht, vocht, droogte (Chatto) + het diepteprofiel van de border<br>
+    <strong>5. Stijl</strong> &#8594; ontwerpstijl (mix mogelijk), seizoensaccent, evt. herhaling/opdeling<br>
+    <strong>6. Voorstel</strong> &#8594; AI-ontwerp opvragen &amp; opslaan, honingraat-schema<br>
+    <strong>7. Export</strong> &#8594; CSV, tekst en PDF-rapport
+  </div>
+</div>
+
+<!-- KAART -->
+<div id="scherm-kaart" class="screen">
+  <div class="gps-row" style="margin-bottom:10px">
+    <div class="gps-display" id="gpsDisplay">Nog niet bepaald</div>
+    <button class="btn btn-gps" id="gpsKnop" onclick="bepaalGPS()">&#128205; GPS</button>
+  </div>
+  <div class="kaart-controls">
+    <button class="btn btn-klein" onclick="wisselTegel()" id="tegelBtn">&#128752; Satelliet</button>
+    <button class="btn btn-klein" onclick="startTekenen()" id="tekenBtn">&#9999;&#65039; Teken border</button>
+    <button class="btn btn-klein" onclick="wisPolygon()">&#8617; Wis</button>
+  </div>
+  <div id="kaartContainer"><div class="kaart-geen">&#128506;<br>Bepaal eerst je GPS-locatie</div></div>
+  <div class="oppervlak-bar">
+    <div><div class="oppervlak-getal" id="oppervlakGetal">0</div><div class="oppervlak-lbl">m&#178; oppervlak</div></div>
+    <div style="text-align:right"><div class="oppervlak-getal" id="puntenGetal">0</div><div class="oppervlak-lbl">hoekpunten</div></div>
+  </div>
+  <div class="stap-hint">Tik "Teken border" en tik daarna punten op de kaart om de omtrek te volgen. Tik nogmaals op "Teken border" om af te ronden. Schakel naar satellietbeeld om schaduw van bomen/gebouwen in te schatten.</div>
+</div>
+
+<!-- FOTO'S -->
+<div id="scherm-fotos" class="screen">
+  <div class="stap-hint">&#128247; Een foto zegt vaak meer dan je als leek onder woorden kunt brengen. Deel ze straks samen met de prompt — dat geeft de AI veel meer om op te ontwerpen dan tekst alleen.</div>
+  <div class="sectie-titel">Huidige situatie</div>
+  <div class="foto-zone" onclick="document.getElementById('huidigeInput').click()">
+    &#128247; Tik om foto's van de huidige situatie te uploaden<small>max 4 foto's</small>
+  </div>
+  <input type="file" id="huidigeInput" accept="image/*" multiple capture="environment" style="display:none" onchange="verwerkFotos(this.files,'fotosHuidig')">
+  <div class="foto-grid" id="huidigeGrid"></div>
+  <hr class="divider">
+  <div class="sectie-titel">Inspiratie</div>
+  <div class="foto-zone" onclick="document.getElementById('inspiratieInput').click()">
+    &#127912; Tik om inspiratiefoto's toe te voegen<small>max 4 foto's</small>
+  </div>
+  <input type="file" id="inspiratieInput" accept="image/*" multiple style="display:none" onchange="verwerkFotos(this.files,'fotosInspiratie')">
+  <div class="foto-grid" id="inspiratieGrid"></div>
+</div>
+
+<!-- BASIS (Beth Chatto: right plant, right place) -->
+<div id="scherm-basis" class="screen">
+  <div class="stap-hint">&#128167; Basis à la Beth Chatto: eerst de groeicondities vastleggen, dán pas planten kiezen. Deze antwoorden vormen het fundament waarop alle stijlen in het tabblad "Stijl" verder bouwen.</div>
+  <div class="label">&#9728;&#65039; Lichtconditie (meerdere mogelijk, bv. bij wisselende zones)</div>
+  <div class="chip-row" id="lichtChips">
+    <button class="chip" data-w="zon" onclick="kiesMultiChip(this,'licht')">Volle zon</button>
+    <button class="chip" data-w="halfschaduw" onclick="kiesMultiChip(this,'licht')">Halfschaduw</button>
+    <button class="chip" data-w="schaduw" onclick="kiesMultiChip(this,'licht')">Schaduw</button>
+  </div>
+  <div class="label">Bijzonderheden zonligging (optioneel)</div>
+  <input type="text" class="inp" id="zonNotitie" placeholder="bijv. het ene uiteinde volle zon, verderop schaduw door een boom/gebouw">
+  <div class="stap-hint">Bij een lange border met verschillende lichtzones aan weerskanten kun je bij "Stijl" de border opdelen in modules — handig om een zon- en een schaduwgedeelte apart te ontwerpen.</div>
+
+  <hr class="divider">
+  <div class="label">&#127795; Diepteprofiel van de border</div>
+  <div class="stap-hint">Dit bepaalt of de opbouw laag-naar-hoog (één kant vrij toegankelijk) of laag-hoog-laag (eilandbed, van beide kanten te zien) wordt.</div>
+  <div class="label" style="margin-top:2px">Achtergrond</div>
+  <div class="chip-row" id="borderTypeChips">
+    <button class="chip actief" data-w="" onclick="kiesSingleChip(this,'borderType')">Niet opgegeven</button>
+    <button class="chip" data-w="vrij" onclick="kiesSingleChip(this,'borderType')">Vrij / eilandbed (beide kanten toegankelijk)</button>
+    <button class="chip" data-w="haag" onclick="kiesSingleChip(this,'borderType')">Haag</button>
+    <button class="chip" data-w="tuinmuur" onclick="kiesSingleChip(this,'borderType')">Tuinmuur</button>
+    <button class="chip" data-w="huismuur" onclick="kiesSingleChip(this,'borderType')">Huismuur / gevel</button>
+    <button class="chip" data-w="schutting" onclick="kiesSingleChip(this,'borderType')">Schutting</button>
+  </div>
+  <div class="label">Aangrenzend aan de voorzijde</div>
+  <div class="chip-row" id="grensVoorChips">
+    <button class="chip actief" data-w="" onclick="kiesSingleChip(this,'grensVoor')">Niet opgegeven</button>
+    <button class="chip" data-w="pad" onclick="kiesSingleChip(this,'grensVoor')">Pad / verharding</button>
+    <button class="chip" data-w="gazon" onclick="kiesSingleChip(this,'grensVoor')">Gazon</button>
+    <button class="chip" data-w="anders" onclick="kiesSingleChip(this,'grensVoor')">Anders</button>
+  </div>
+  <div id="grensAchterVeld" style="display:none">
+    <div class="label">Aangrenzend aan de achterzijde (eilandbed)</div>
+    <div class="chip-row" id="grensAchterChips">
+      <button class="chip actief" data-w="" onclick="kiesSingleChip(this,'grensAchter')">Niet opgegeven</button>
+      <button class="chip" data-w="pad" onclick="kiesSingleChip(this,'grensAchter')">Pad / verharding</button>
+      <button class="chip" data-w="gazon" onclick="kiesSingleChip(this,'grensAchter')">Gazon</button>
+      <button class="chip" data-w="anders" onclick="kiesSingleChip(this,'grensAchter')">Anders</button>
+    </div>
+  </div>
+
+  <hr class="divider">
+  <div class="label">&#128167; Bodemvocht</div>
+  <div class="chip-row" id="vochtChips">
+    <button class="chip actief" data-w="geen" onclick="kiesSingleChip(this,'vocht')">Geen voorkeur</button>
+    <button class="chip" data-w="droog" onclick="kiesSingleChip(this,'vocht')">Droog / snel drainerend</button>
+    <button class="chip" data-w="normaal" onclick="kiesSingleChip(this,'vocht')">Normaal</button>
+    <button class="chip" data-w="vochtig" onclick="kiesSingleChip(this,'vocht')">Vochthoudend</button>
+  </div>
+  <div class="label">&#128167; Droogteresistentie (hard filter, offline suggesties)</div>
+  <div class="chip-row" id="droogteChips"><button class="chip" data-w="ja" onclick="kiesSingleChip(this,'droogte')">Droogteresistent verplicht</button><button class="chip actief" data-w="geen" onclick="kiesSingleChip(this,'droogte')">Geen voorkeur</button></div>
+  <div class="label">&#127793; Type plant</div>
+  <div class="chip-row" id="typeChips">
+    <button class="chip" data-w="bodembedekker" onclick="kiesMultiChip(this,'type')">Bodembedekkend</button>
+    <button class="chip" data-w="opgaand" onclick="kiesMultiChip(this,'type')">Opgaand</button>
+    <button class="chip" data-w="klimmer" onclick="kiesMultiChip(this,'type')">Klimmer (met steun)</button>
+  </div>
+  <div class="label">&#127801; Gewenste bloemkleur (kleurstelling — ook basis voor Jekyll-kleurverloop)</div>
+  <div class="chip-row" id="kleurChips">
+    <button class="chip kleurchip" data-w="wit" onclick="kiesMultiChip(this,'kleur')">Wit</button>
+    <button class="chip kleurchip" data-w="geel" onclick="kiesMultiChip(this,'kleur')">Geel</button>
+    <button class="chip kleurchip" data-w="oranje" onclick="kiesMultiChip(this,'kleur')">Oranje</button>
+    <button class="chip kleurchip" data-w="rood" onclick="kiesMultiChip(this,'kleur')">Rood</button>
+    <button class="chip kleurchip" data-w="roze" onclick="kiesMultiChip(this,'kleur')">Roze</button>
+    <button class="chip kleurchip" data-w="paars" onclick="kiesMultiChip(this,'kleur')">Paars</button>
+    <button class="chip kleurchip" data-w="blauw" onclick="kiesMultiChip(this,'kleur')">Blauw</button>
+  </div>
+  <div class="label">&#128736;&#65039; Onderhoud</div>
+  <div class="chip-row" id="onderhoudChips"><button class="chip actief" data-w="hoog" onclick="kiesSingleChip(this,'onderhoud')">Maakt niet uit</button><button class="chip" data-w="gemiddeld" onclick="kiesSingleChip(this,'onderhoud')">Maximaal gemiddeld</button><button class="chip" data-w="laag" onclick="kiesSingleChip(this,'onderhoud')">Zo min mogelijk</button></div>
+  <div class="label">&#10052;&#65039; Winterhardheid</div>
+  <div class="chip-row" id="hardheidChips"><button class="chip actief" data-w="0" onclick="kiesSingleChip(this,'hardheid')">Geen voorkeur</button><button class="chip" data-w="4" onclick="kiesSingleChip(this,'hardheid')">Goed winterhard</button><button class="chip" data-w="5" onclick="kiesSingleChip(this,'hardheid')">Volledig winterhard</button></div>
+  <div class="label">&#127803; Bolgewassen meenemen?</div>
+  <div class="chip-row" id="bollenChips"><button class="chip" data-w="ja" onclick="kiesSingleChip(this,'bollen')">Ja</button><button class="chip actief" data-w="nee" onclick="kiesSingleChip(this,'bollen')">Nee</button></div>
+  <div class="chip-row" id="bolSeizoenChips">
+    <button class="chip" data-w="voorjaar" onclick="kiesMultiChip(this,'bolSeizoen')">Voorjaarsbloeiers</button>
+    <button class="chip" data-w="zomer" onclick="kiesMultiChip(this,'bolSeizoen')">Zomerbloeiers</button>
+  </div>
+  <div class="label">Plantafstand: eigen voorkeur (optioneel, cm)</div>
+  <input type="text" class="inp" id="afstandVoorkeur" placeholder="leeg = geadviseerde afstand per plant aanhouden" oninput="state.filters.afstandVoorkeur=this.value;slaData();">
+</div>
+
+<!-- STIJL -->
+<div id="scherm-stijl" class="screen">
+  <div class="label">&#127912; Ontwerpstijl (mix mogelijk)</div>
+  <div class="stap-hint">De stijlen overlappen elkaar op punten — Oudolf en Chatto delen bijv. de voorkeur voor droogteresistente structuurplanten, Jekyll en Ter Linden delen het schilderende kleurdenken. Kies er één of combineer meerdere; de conditie-basis (tabblad Basis) blijft altijd leidend.</div>
+  <div class="chip-row" id="ontwerpChips">
+    <button class="chip stijlchip" data-w="chatto" onclick="kiesMultiChip(this,'ontwerp','stijl')">&#128167; Chatto — right plant, right place (droogtetuin/grind)</button>
+    <button class="chip stijlchip" data-w="jekyll" onclick="kiesMultiChip(this,'ontwerp','stijl')">&#127912; Jekyll — kleurverloop, lange driften</button>
+    <button class="chip stijlchip" data-w="terlinden" onclick="kiesMultiChip(this,'ontwerp','stijl')">&#127911; Ter Linden — schilderend, hoog en transparant</button>
+    <button class="chip stijlchip" data-w="oudolf" onclick="kiesMultiChip(this,'ontwerp','stijl')">&#127807; Oudolf — matrix &amp; blocks, structuurplanten</button>
+    <button class="chip stijlchip" data-w="ruys" onclick="kiesMultiChip(this,'ontwerp','stijl')">&#128208; Ruys — confectie/repeterend, heldere vakken</button>
+  </div>
+  <div class="label">&#127774; Seizoensaccent</div>
+  <div class="chip-row" id="seizoenChips">
+    <button class="chip" data-w="voorjaar" onclick="kiesMultiChip(this,'seizoen','stijl')">Voorjaar</button>
+    <button class="chip" data-w="zomer" onclick="kiesMultiChip(this,'seizoen','stijl')">Zomer</button>
+    <button class="chip" data-w="najaar" onclick="kiesMultiChip(this,'seizoen','stijl')">Najaar (asterborder e.d.)</button>
+    <button class="chip" data-w="winter" onclick="kiesMultiChip(this,'seizoen','stijl')">Winterbeeld (grassen/zaaddozen)</button>
+    <button class="chip" data-w="verspreid" onclick="kiesMultiChip(this,'seizoen','stijl')">Verspreid — heel jaar door</button>
+  </div>
+  <hr class="divider">
+  <div class="label">&#128208; Repeterende / opgedeelde border</div>
+  <div class="stap-hint">Handig bij een lange border, of als condities aan het ene uiteinde anders zijn dan aan het andere (bv. zon vs. schaduw door een boom verderop) — ontwerp dan één module of aparte zones in plaats van één doorlopend geheel.</div>
+  <div class="chip-row" id="herhalingChips">
+    <button class="chip actief" data-w="nee" onclick="kiesSingleChip(this,'herhaling','stijl')">Nee, eenmalig ontwerp</button>
+    <button class="chip" data-w="ja" onclick="kiesSingleChip(this,'herhaling','stijl')">Ja, herhaalbare module / zones</button>
+  </div>
+  <div id="herhalingVelden" style="display:none">
+    <div class="label">Module- of zonelengte (m)</div>
+    <input type="number" step="0.1" class="inp" id="moduleLengteInput" placeholder="bijv. 2" oninput="state.stijl.moduleLengte=this.value;slaData();">
+  </div>
+  <div class="label">Afmetingen voor de schematekening</div>
+  <div class="tweekolom">
+    <input type="number" step="0.1" class="inp" id="lengteMInput" placeholder="lengte border (m)" oninput="state.stijl.lengteM=this.value;slaData();">
+    <input type="number" step="0.1" class="inp" id="breedteMInput" placeholder="breedte border (m)" oninput="state.stijl.breedteM=this.value;slaData();">
+  </div>
+</div>
+
+<!-- VOORSTEL -->
+<div id="scherm-voorstel" class="screen">
+  <button class="btn btn-klein" style="width:100%;margin-bottom:10px" onclick="genereerShortlist()">&#127793; Snelle offline suggestie (optioneel, ter inspiratie)</button>
+  <div class="card" style="border-color:#5a3f00;background:#2a1f00">
+    <div class="label" style="color:#e8c070">&#129302; Beste keuze: ontwerpen met AI</div>
+    <div class="stap-hint">De AI ontwerpt het volledige beplantingsplan op basis van al je keuzes — inclusief de foto's, die veel meer laten zien dan een leek kan beschrijven.<br>1. Deel je foto's + prompt met een AI-app (of kopieer alleen de tekst)<br>2. Plak het antwoord hieronder terug</div>
+    <div class="rij-knoppen">
+      <button class="btn btn-deel" onclick="deelFotosEnPrompt()">&#8679; Deel foto's + prompt</button>
+      <button class="btn btn-deel" onclick="kopieerOntwerpPrompt()">&#128203; Alleen tekst</button>
+    </div>
+    <textarea class="inp" id="ontwerpAntwoord" placeholder="Plak hier het beplantingsontwerp van de AI (met genummerde legenda)..." style="min-height:100px"></textarea>
+    <button class="btn btn-opslaan" onclick="slaOntwerpOp()">&#10003; Ontwerp opslaan</button>
+  </div>
+  <div id="ontwerpWeergave"></div>
+  <hr class="divider">
+  <div class="sectie-titel">Schema (honingraat)</div>
+  <canvas class="schema-canvas" id="schemaCanvas"></canvas>
+  <div id="schemaLegenda"></div>
+  <button class="btn btn-klein" style="width:100%;margin-bottom:10px" onclick="downloadSchema()">&#8595; Schema als PNG</button>
+  <hr class="divider">
+  <div class="sectie-titel">Offline suggesties</div>
+  <div id="plantenLijst"><div style="font-size:.75rem;color:#6a9465;text-align:center;padding:16px">Nog geen suggesties gegenereerd</div></div>
+  <div id="bollenSectie" style="display:none">
+    <div class="sectie-titel">Bolgewassen</div>
+    <div id="bollenLijst"></div>
+  </div>
+</div>
+
+<!-- EXPORT -->
+<div id="scherm-export" class="screen">
+  <div class="export-card">
+    <div style="font-size:2rem;margin-bottom:8px">&#128196;</div>
+    <div class="sectie-titel">PDF-rapport</div>
+    <div class="export-desc">Kaart, schema, legenda, foto's en het volledige AI-ontwerp in één document — te delen, bewaren of buiten uit te printen.</div>
+    <button class="btn btn-pdf" onclick="genereerPDF()">&#128196; Genereer PDF-rapport</button>
+  </div>
+  <div class="export-card">
+    <div style="font-size:2rem;margin-bottom:8px">&#128196;</div>
+    <div class="sectie-titel">CSV &mdash; offline suggesties</div>
+    <div class="export-desc">Plantnaam, code, rol, stijl, licht, kleur, hoogte, plantafstand, onderhoud.</div>
+    <button class="btn btn-primair" onclick="exporteerCSV()">&#8595; Download CSV</button>
+  </div>
+  <div class="export-card">
+    <div style="font-size:2rem;margin-bottom:8px">&#128221;</div>
+    <div class="sectie-titel">Tekst &mdash; ontwerp</div>
+    <div class="export-desc">Het AI-beplantingsontwerp als tekstbestand.</div>
+    <button class="btn btn-primair" onclick="exporteerOntwerp()">&#8595; Download ontwerp.txt</button>
+  </div>
+  <hr class="divider">
+  <div class="card"><div class="label">Huidig project</div><div id="projArchief" style="font-size:.72rem;color:#6a9465">Laden...</div></div>
+  <button class="btn btn-klein btn-gevaar" onclick="verwijderProject()" style="width:100%;margin-top:8px">&#10005; Project wissen</button>
+</div>
+
+<div class="notif" id="notif"></div>
+
+<script>
+var PLANTEN = [
+{naam:'Zonnehoed',latijn:'Echinacea purpurea',licht:['zon'],droogte:true,type:'opgaand',kleur:['roze','paars','wit'],onderhoud:'laag',hardheid:5,hoogte:80,afstand:40,code:'ECH',rol:'structuur',stijl:['oudolf','chatto','jekyll'],seizoen:['zomer','najaar']},
+{naam:'Vlambloem',latijn:'Phlox paniculata',licht:['zon','halfschaduw'],droogte:false,type:'opgaand',kleur:['roze','wit','paars','rood'],onderhoud:'gemiddeld',hardheid:5,hoogte:90,afstand:45,code:'PHL',rol:'accent',stijl:['jekyll','terlinden'],seizoen:['zomer']},
+{naam:'Lavendel',latijn:'Lavandula angustifolia',licht:['zon'],droogte:true,type:'bodembedekker',kleur:['paars','blauw'],onderhoud:'laag',hardheid:4,hoogte:50,afstand:40,code:'LAV',rol:'matrix',stijl:['chatto','ruys'],seizoen:['zomer']},
+{naam:'Kattenkruid',latijn:'Nepeta faassenii',licht:['zon'],droogte:true,type:'bodembedekker',kleur:['blauw','paars'],onderhoud:'laag',hardheid:5,hoogte:40,afstand:35,code:'NEP',rol:'matrix',stijl:['oudolf','chatto','ruys'],seizoen:['zomer']},
+{naam:'Vetkruid',latijn:'Hylotelephium spectabile',licht:['zon'],droogte:true,type:'bodembedekker',kleur:['roze','rood','wit'],onderhoud:'laag',hardheid:5,hoogte:40,afstand:35,code:'SED',rol:'structuur',stijl:['oudolf','chatto'],seizoen:['najaar','winter']},
+{naam:'Meisjesogen',latijn:'Coreopsis',licht:['zon'],droogte:true,type:'opgaand',kleur:['geel','oranje'],onderhoud:'laag',hardheid:4,hoogte:50,afstand:30,code:'COR',rol:'accent',stijl:['jekyll','terlinden'],seizoen:['zomer']},
+{naam:'Zonnehoed geel',latijn:'Rudbeckia fulgida',licht:['zon'],droogte:true,type:'opgaand',kleur:['geel','oranje'],onderhoud:'laag',hardheid:4,hoogte:70,afstand:40,code:'RUD',rol:'accent',stijl:['oudolf','jekyll'],seizoen:['zomer','najaar']},
+{naam:'Vaste salie',latijn:'Salvia nemorosa',licht:['zon'],droogte:true,type:'opgaand',kleur:['blauw','paars'],onderhoud:'laag',hardheid:5,hoogte:50,afstand:35,code:'SAL',rol:'matrix',stijl:['oudolf','jekyll','chatto'],seizoen:['zomer']},
+{naam:'Guarabloem',latijn:'Gaura lindheimeri',licht:['zon'],droogte:true,type:'opgaand',kleur:['wit','roze'],onderhoud:'laag',hardheid:3,hoogte:70,afstand:40,code:'GAU',rol:'accent',stijl:['terlinden','chatto'],seizoen:['zomer']},
+{naam:'IJzerhard',latijn:'Verbena bonariensis',licht:['zon'],droogte:true,type:'opgaand',kleur:['paars'],onderhoud:'laag',hardheid:3,hoogte:120,afstand:40,code:'VER',rol:'accent',stijl:['oudolf','terlinden','chatto'],seizoen:['zomer','najaar']},
+{naam:'Margriet',latijn:'Leucanthemum vulgare',licht:['zon','halfschaduw'],droogte:false,type:'opgaand',kleur:['wit'],onderhoud:'laag',hardheid:5,hoogte:60,afstand:35,code:'LEU',rol:'accent',stijl:['jekyll','ruys'],seizoen:['zomer']},
+{naam:'Ridderspoor',latijn:'Delphinium',licht:['zon'],droogte:false,type:'opgaand',kleur:['blauw','paars','wit'],onderhoud:'hoog',hardheid:4,hoogte:150,afstand:50,code:'DEL',rol:'structuur',stijl:['jekyll','terlinden'],seizoen:['zomer']},
+{naam:'Pioenroos',latijn:'Paeonia lactiflora',licht:['zon','halfschaduw'],droogte:false,type:'opgaand',kleur:['roze','rood','wit'],onderhoud:'laag',hardheid:5,hoogte:70,afstand:60,code:'PAE',rol:'accent',stijl:['jekyll','ruys'],seizoen:['voorjaar']},
+{naam:'Iris',latijn:'Iris germanica',licht:['zon'],droogte:true,type:'opgaand',kleur:['blauw','paars','geel','wit'],onderhoud:'laag',hardheid:5,hoogte:70,afstand:30,code:'IRI',rol:'accent',stijl:['jekyll','terlinden'],seizoen:['voorjaar']},
+{naam:'Daglelie',latijn:'Hemerocallis',licht:['zon','halfschaduw'],droogte:true,type:'bodembedekker',kleur:['geel','oranje','rood','roze'],onderhoud:'laag',hardheid:5,hoogte:60,afstand:40,code:'HEM',rol:'matrix',stijl:['ruys','jekyll'],seizoen:['zomer']},
+{naam:'Hartlelie',latijn:'Hosta',licht:['halfschaduw','schaduw'],droogte:false,type:'bodembedekker',kleur:['wit','paars'],onderhoud:'laag',hardheid:5,hoogte:40,afstand:45,code:'HOS',rol:'matrix',stijl:['ruys','jekyll'],seizoen:['zomer']},
+{naam:'Niervaren',latijn:'Dryopteris filix-mas',licht:['schaduw'],droogte:false,type:'bodembedekker',kleur:[],onderhoud:'laag',hardheid:5,hoogte:60,afstand:40,code:'DRY',rol:'structuur',stijl:['jekyll','ruys'],seizoen:['zomer','winter']},
+{naam:'Longkruid',latijn:'Pulmonaria',licht:['halfschaduw','schaduw'],droogte:false,type:'bodembedekker',kleur:['blauw','roze'],onderhoud:'laag',hardheid:5,hoogte:25,afstand:30,code:'PUL',rol:'matrix',stijl:['jekyll','ruys'],seizoen:['voorjaar']},
+{naam:'Bosanemoon',latijn:'Anemone nemorosa',licht:['schaduw','halfschaduw'],droogte:false,type:'bodembedekker',kleur:['wit'],onderhoud:'laag',hardheid:5,hoogte:15,afstand:20,code:'ANE',rol:'accent',stijl:['jekyll','ruys'],seizoen:['voorjaar']},
+{naam:'Astilbe',latijn:'Astilbe',licht:['halfschaduw','schaduw'],droogte:false,type:'opgaand',kleur:['roze','rood','wit'],onderhoud:'gemiddeld',hardheid:5,hoogte:60,afstand:35,code:'AST',rol:'accent',stijl:['ruys','jekyll'],seizoen:['zomer']},
+{naam:'Vingerhoedskruid',latijn:'Digitalis purpurea',licht:['halfschaduw'],droogte:false,type:'opgaand',kleur:['roze','paars','wit'],onderhoud:'laag',hardheid:4,hoogte:100,afstand:30,code:'DIG',rol:'structuur',stijl:['jekyll','terlinden'],seizoen:['zomer']},
+{naam:'Klokjesbloem',latijn:'Campanula',licht:['zon','halfschaduw'],droogte:false,type:'bodembedekker',kleur:['blauw','paars','wit'],onderhoud:'laag',hardheid:5,hoogte:30,afstand:25,code:'CAM',rol:'matrix',stijl:['ruys','jekyll'],seizoen:['zomer']},
+{naam:'Ooievaarsbek',latijn:'Geranium',licht:['zon','halfschaduw'],droogte:true,type:'bodembedekker',kleur:['roze','paars','blauw','wit'],onderhoud:'laag',hardheid:5,hoogte:35,afstand:40,code:'GER',rol:'matrix',stijl:['oudolf','ruys','chatto'],seizoen:['zomer']},
+{naam:'Vrouwenmantel',latijn:'Alchemilla mollis',licht:['zon','halfschaduw'],droogte:false,type:'bodembedekker',kleur:['geel'],onderhoud:'laag',hardheid:5,hoogte:40,afstand:40,code:'ALC',rol:'matrix',stijl:['jekyll','ruys'],seizoen:['zomer']},
+{naam:'Vaste zonnebloem',latijn:'Helianthus decapetalus',licht:['zon'],droogte:true,type:'opgaand',kleur:['geel'],onderhoud:'laag',hardheid:5,hoogte:150,afstand:50,code:'HEL',rol:'structuur',stijl:['terlinden','oudolf'],seizoen:['najaar']},
+{naam:'Aster',latijn:'Aster novi-belgii',licht:['zon','halfschaduw'],droogte:false,type:'opgaand',kleur:['paars','roze','blauw','wit'],onderhoud:'laag',hardheid:5,hoogte:80,afstand:40,code:'ASN',rol:'accent',stijl:['jekyll','terlinden','oudolf'],seizoen:['najaar']},
+{naam:'Lampenpluimgras',latijn:'Pennisetum alopecuroides',licht:['zon'],droogte:true,type:'opgaand',kleur:[],onderhoud:'laag',hardheid:4,hoogte:80,afstand:50,code:'PEN',rol:'structuur',stijl:['oudolf','ruys'],seizoen:['najaar','winter']},
+{naam:'Blauw schapengras',latijn:'Festuca glauca',licht:['zon'],droogte:true,type:'bodembedekker',kleur:[],onderhoud:'laag',hardheid:5,hoogte:25,afstand:25,code:'FES',rol:'matrix',stijl:['chatto','ruys'],seizoen:['zomer','winter']},
+{naam:'Kruisbladwolfsmelk',latijn:'Euphorbia',licht:['zon','halfschaduw'],droogte:true,type:'bodembedekker',kleur:['geel'],onderhoud:'laag',hardheid:4,hoogte:40,afstand:35,code:'EUP',rol:'matrix',stijl:['chatto','oudolf'],seizoen:['voorjaar','zomer']},
+{naam:'Zonneroosje',latijn:'Helianthemum',licht:['zon'],droogte:true,type:'bodembedekker',kleur:['geel','oranje','roze','wit'],onderhoud:'laag',hardheid:4,hoogte:20,afstand:30,code:'HLM',rol:'matrix',stijl:['chatto','ruys'],seizoen:['zomer']},
+{naam:'Anjer',latijn:'Dianthus',licht:['zon'],droogte:true,type:'bodembedekker',kleur:['roze','rood','wit'],onderhoud:'laag',hardheid:5,hoogte:25,afstand:25,code:'DIA',rol:'matrix',stijl:['chatto','jekyll'],seizoen:['zomer']},
+{naam:'Duizendblad',latijn:'Achillea millefolium',licht:['zon'],droogte:true,type:'opgaand',kleur:['geel','rood','roze','wit'],onderhoud:'laag',hardheid:5,hoogte:60,afstand:35,code:'ACH',rol:'matrix',stijl:['oudolf','chatto'],seizoen:['zomer']},
+{naam:'Guldenroede',latijn:'Solidago',licht:['zon'],droogte:true,type:'opgaand',kleur:['geel'],onderhoud:'laag',hardheid:5,hoogte:90,afstand:40,code:'SOL',rol:'accent',stijl:['oudolf','terlinden'],seizoen:['najaar']},
+{naam:'Kokardebloem',latijn:'Gaillardia',licht:['zon'],droogte:true,type:'opgaand',kleur:['rood','oranje','geel'],onderhoud:'laag',hardheid:4,hoogte:50,afstand:30,code:'GAI',rol:'accent',stijl:['chatto','ruys'],seizoen:['zomer']},
+{naam:'Klimop',latijn:'Hedera helix',licht:['schaduw','halfschaduw'],droogte:true,type:'klimmer',kleur:[],onderhoud:'laag',hardheid:5,hoogte:300,afstand:50,code:'HED',rol:'structuur',stijl:['ruys'],seizoen:['winter']},
+{naam:'Clematis',latijn:'Clematis',licht:['zon','halfschaduw'],droogte:false,type:'klimmer',kleur:['paars','roze','wit','blauw'],onderhoud:'gemiddeld',hardheid:5,hoogte:250,afstand:60,code:'CLE',rol:'accent',stijl:['jekyll','terlinden'],seizoen:['zomer']},
+{naam:'Kamperfoelie',latijn:'Lonicera periclymenum',licht:['zon','halfschaduw'],droogte:false,type:'klimmer',kleur:['geel','roze'],onderhoud:'laag',hardheid:5,hoogte:300,afstand:60,code:'LON',rol:'accent',stijl:['ruys'],seizoen:['zomer']},
+{naam:'Blauweregen',latijn:'Wisteria',licht:['zon'],droogte:false,type:'klimmer',kleur:['paars'],onderhoud:'hoog',hardheid:4,hoogte:500,afstand:100,code:'WIS',rol:'structuur',stijl:['jekyll'],seizoen:['voorjaar']},
+{naam:'Hop',latijn:'Humulus lupulus',licht:['zon','halfschaduw'],droogte:true,type:'klimmer',kleur:[],onderhoud:'gemiddeld',hardheid:5,hoogte:400,afstand:60,code:'HUM',rol:'structuur',stijl:['terlinden'],seizoen:['zomer']},
+{naam:'Chinees zilvergras',latijn:'Miscanthus sinensis',licht:['zon'],droogte:true,type:'opgaand',kleur:[],onderhoud:'laag',hardheid:5,hoogte:150,afstand:60,code:'MIS',rol:'structuur',stijl:['oudolf','terlinden','ruys'],seizoen:['najaar','winter']},
+{naam:'Pijpenstrootje',latijn:'Molinia caerulea',licht:['zon','halfschaduw'],droogte:false,type:'opgaand',kleur:[],onderhoud:'laag',hardheid:5,hoogte:120,afstand:50,code:'MOL',rol:'structuur',stijl:['oudolf'],seizoen:['zomer','najaar','winter']},
+{naam:'Vederborstelgras Karl Foerster',latijn:"Calamagrostis x acutiflora 'Karl Foerster'",licht:['zon'],droogte:true,type:'opgaand',kleur:[],onderhoud:'laag',hardheid:5,hoogte:150,afstand:40,code:'CAL',rol:'structuur',stijl:['oudolf'],seizoen:['zomer','najaar','winter']},
+{naam:'Leverkruid',latijn:'Eupatorium maculatum',licht:['zon','halfschaduw'],droogte:false,type:'opgaand',kleur:['paars','roze'],onderhoud:'laag',hardheid:5,hoogte:180,afstand:60,code:'EUT',rol:'structuur',stijl:['oudolf','terlinden'],seizoen:['zomer','najaar']},
+{naam:'Duizendknoop',latijn:'Persicaria amplexicaulis',licht:['zon','halfschaduw'],droogte:false,type:'opgaand',kleur:['rood','roze','wit'],onderhoud:'laag',hardheid:5,hoogte:90,afstand:45,code:'PER',rol:'accent',stijl:['oudolf','ruys'],seizoen:['zomer','najaar']},
+{naam:'Japanse anemoon',latijn:'Anemone hupehensis',licht:['halfschaduw','zon'],droogte:false,type:'opgaand',kleur:['roze','wit'],onderhoud:'laag',hardheid:4,hoogte:80,afstand:40,code:'ANH',rol:'accent',stijl:['jekyll','terlinden'],seizoen:['najaar']},
+{naam:'Zonnebruid',latijn:'Helenium autumnale',licht:['zon'],droogte:false,type:'opgaand',kleur:['geel','oranje','rood'],onderhoud:'laag',hardheid:5,hoogte:100,afstand:40,code:'HLN',rol:'accent',stijl:['oudolf','jekyll'],seizoen:['zomer','najaar']},
+{naam:'Weduwenbloem',latijn:'Knautia macedonica',licht:['zon'],droogte:true,type:'opgaand',kleur:['rood','roze'],onderhoud:'laag',hardheid:4,hoogte:60,afstand:35,code:'KNA',rol:'accent',stijl:['jekyll','terlinden','chatto'],seizoen:['zomer']},
+{naam:'Kruisdistel',latijn:'Eryngium',licht:['zon'],droogte:true,type:'opgaand',kleur:['blauw'],onderhoud:'laag',hardheid:4,hoogte:70,afstand:35,code:'ERY',rol:'structuur',stijl:['chatto','oudolf'],seizoen:['zomer']},
+{naam:'Stachys',latijn:'Stachys byzantina',licht:['zon'],droogte:true,type:'bodembedekker',kleur:[],onderhoud:'laag',hardheid:5,hoogte:25,afstand:35,code:'STA',rol:'matrix',stijl:['chatto','ruys'],seizoen:['zomer']}
+];
+var BOLLEN = [
+{naam:'Tulp',seizoen:'voorjaar',licht:['zon','halfschaduw'],kleur:['rood','geel','roze','wit','paars','oranje'],hoogte:40,afstand:10},
+{naam:'Narcis',seizoen:'voorjaar',licht:['zon','halfschaduw'],kleur:['geel','wit'],hoogte:35,afstand:10},
+{naam:'Krokus',seizoen:'voorjaar',licht:['zon','halfschaduw'],kleur:['paars','geel','wit'],hoogte:10,afstand:5},
+{naam:'Hyacint',seizoen:'voorjaar',licht:['zon','halfschaduw'],kleur:['blauw','roze','wit','paars'],hoogte:25,afstand:10},
+{naam:'Sneeuwklokje',seizoen:'voorjaar',licht:['halfschaduw','schaduw'],kleur:['wit'],hoogte:15,afstand:5},
+{naam:'Blauwe druifjes',seizoen:'voorjaar',licht:['zon','halfschaduw'],kleur:['blauw'],hoogte:15,afstand:5},
+{naam:'Sierui',seizoen:'voorjaar',licht:['zon'],kleur:['paars','wit'],hoogte:70,afstand:20},
+{naam:'Dahlia',seizoen:'zomer',licht:['zon'],kleur:['rood','roze','geel','oranje','wit','paars'],hoogte:90,afstand:40},
+{naam:'Gladiool',seizoen:'zomer',licht:['zon'],kleur:['rood','roze','geel','wit','paars'],hoogte:100,afstand:15},
+{naam:'Lelie',seizoen:'zomer',licht:['zon','halfschaduw'],kleur:['wit','roze','oranje','rood'],hoogte:100,afstand:25},
+{naam:'Crocosmia',seizoen:'zomer',licht:['zon'],kleur:['oranje','rood'],hoogte:70,afstand:15},
+{naam:'Canna',seizoen:'zomer',licht:['zon'],kleur:['rood','geel','oranje'],hoogte:120,afstand:40}
+];
+
+var STIJLLABEL = {chatto:'Beth Chatto (droogtetuin / right plant right place)',jekyll:'Gertrude Jekyll (kleurverloop / driften)',terlinden:'Ton ter Linden (schilderend, hoog en transparant)',oudolf:'Piet Oudolf (matrix & blocks)',ruys:'Mien Ruys (confectie / repeterend)'};
+var SEIZOENLABEL = {voorjaar:'Voorjaar',zomer:'Zomer',najaar:'Najaar',winter:'Winterbeeld',verspreid:'Verspreid over het hele jaar'};
+var BORDERTYPELABEL = {vrij:'vrij/eilandbed (van beide kanten toegankelijk)',haag:'haag',tuinmuur:'tuinmuur',huismuur:'huismuur/gevel',schutting:'schutting'};
+var GRENSLABEL = {pad:'pad/verharding',gazon:'gazon',anders:'anders'};
+
+var state = {
+  project:null, grens:[], oppervlak:0,
+  fotosHuidig:[], fotosInspiratie:[],
+  filters:{licht:[], vocht:'geen', droogte:'geen', type:[], kleur:[], onderhoud:'hoog', hardheid:0, bollen:'nee', bolSeizoen:[], zonNotitie:'', afstandVoorkeur:'', borderType:'', grensVoor:'', grensAchter:''},
+  stijl:{ontwerp:[], seizoen:[], herhaling:'nee', moduleLengte:'', lengteM:'', breedteM:''},
+  shortlist:[], bolShortlist:[], ontwerpTekst:''
+};
+
+window.addEventListener('load', function(){
+  document.getElementById('datumInput').value = new Date().toISOString().split('T')[0];
+  laadData();
+  updateExportArchief();
+});
+
+function toonScherm(naam){
+  document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});
+  document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
+  document.getElementById('scherm-'+naam).classList.add('active');
+  var namen = ['start','kaart','fotos','basis','stijl','voorstel','export'];
+  var tabs = document.querySelectorAll('.tab');
+  namen.forEach(function(n,i){ if(n===naam) tabs[i].classList.add('active'); });
+  if(naam==='kaart') setTimeout(initKaart,100);
+  if(naam==='voorstel') setTimeout(tekenSchema,100);
+  if(naam==='export') updateExportArchief();
+}
+
+function startProject(){
+  var naam = document.getElementById('projNaam').value.trim();
+  if(!naam){ toonNotif('Vul een projectnaam in'); return; }
+  state.project = {id:Date.now(), naam:naam, datum:document.getElementById('datumInput').value, grondslag:document.getElementById('grondslagSelect').value};
+  slaData();
+  document.getElementById('projLabel').textContent = naam.substring(0,20);
+  toonScherm('kaart'); toonNotif('Project gestart');
+}
+
+var kaartObj = null, osmLayer = null, satLayer = null, huidigeTegel = 'osm', polygonLayer = null, puntMarkers = [];
+var tekenModus = false;
+function initKaart(){
+  var c = document.getElementById('kaartContainer');
+  if(kaartObj || typeof L==='undefined') return;
+  if(!state.project){ c.innerHTML = '<div class="kaart-geen">&#128506;<br>Start eerst een project</div>'; return; }
+  c.innerHTML = '';
+  kaartObj = L.map(c,{zoomControl:true});
+  osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:20,attribution:'\u00a9 OpenStreetMap'});
+  satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:20,attribution:'\u00a9 Esri'});
+  osmLayer.addTo(kaartObj);
+  kaartObj.setView([51.5, 5.0], 6);
+  kaartObj.on('click', onKaartKlik);
+  if(state.grens.length) tekenPolygonUitState();
+  setTimeout(function(){ if(kaartObj) kaartObj.invalidateSize(); },200);
+}
+function wisselTegel(){
+  if(!kaartObj) return;
+  if(huidigeTegel==='osm'){ kaartObj.removeLayer(osmLayer); satLayer.addTo(kaartObj); huidigeTegel='sat'; document.getElementById('tegelBtn').innerHTML='&#128506; OSM'; }
+  else { kaartObj.removeLayer(satLayer); osmLayer.addTo(kaartObj); huidigeTegel='osm'; document.getElementById('tegelBtn').innerHTML='&#128752; Satelliet'; }
+}
+function bepaalGPS(){
+  var d=document.getElementById('gpsDisplay'), k=document.getElementById('gpsKnop');
+  d.textContent='Zoeken...'; d.style.color='#e8a020'; k.innerHTML='&#9203;'; k.disabled=true;
+  if(!navigator.geolocation){ d.textContent='GPS niet beschikbaar'; k.innerHTML='&#128205; GPS'; k.disabled=false; return; }
+  navigator.geolocation.getCurrentPosition(function(pos){
+    var lat=pos.coords.latitude, lon=pos.coords.longitude;
+    d.textContent=lat.toFixed(5)+', '+lon.toFixed(5); d.style.color='#7dcf75'; k.innerHTML='&#10003;'; k.disabled=false;
+    if(state.project){ state.project.gps = lat.toFixed(5)+', '+lon.toFixed(5); slaData(); }
+    if(kaartObj){ kaartObj.setView([lat,lon], 19); }
+    toonNotif('GPS bepaald \u2713');
+  }, function(err){
+    d.style.color='#e87070'; k.innerHTML='&#128205; GPS'; k.disabled=false;
+    d.textContent = err.code===1?'Toestemming geweigerd':err.code===2?'Signaal niet gevonden':'Time-out';
+    toonNotif('GPS mislukt');
+  }, {enableHighAccuracy:true, timeout:10000, maximumAge:0});
+}
+function startTekenen(){
+  if(!kaartObj){ toonNotif('Wacht tot de kaart geladen is'); return; }
+  tekenModus = !tekenModus;
+  document.getElementById('tekenBtn').classList.toggle('actief', tekenModus);
+  if(!tekenModus){ berekenOppervlak(); if(state.grens.length>=3) toonNotif('Border vastgelegd \u2713'); slaData(); }
+  else { wisPolygon(true); toonNotif('Tik punten op de kaart om de border te omlijnen'); }
+}
+function onKaartKlik(e){
+  if(!tekenModus) return;
+  state.grens.push({lat:e.latlng.lat, lng:e.latlng.lng});
+  var m = L.circleMarker(e.latlng, {radius:5, color:'#a8d4a0', fillColor:'#2d5a27', fillOpacity:1}).addTo(kaartObj);
+  puntMarkers.push(m);
+  tekenPolygonUitState();
+  document.getElementById('puntenGetal').textContent = state.grens.length;
+}
+function tekenPolygonUitState(){
+  if(polygonLayer){ kaartObj.removeLayer(polygonLayer); polygonLayer=null; }
+  if(state.grens.length>=2){
+    var latlngs = state.grens.map(function(p){return [p.lat,p.lng];});
+    polygonLayer = L.polygon(latlngs, {color:'#4a7c42', fillColor:'#4a7c42', fillOpacity:.3}).addTo(kaartObj);
+  }
+  berekenOppervlak();
+}
+function berekenOppervlak(){
+  if(state.grens.length<3){ document.getElementById('oppervlakGetal').textContent='0'; return; }
+  var R = 6371000;
+  var latRef = state.grens[0].lat * Math.PI/180;
+  var pts = state.grens.map(function(p){ return {
+    x: R * (p.lng*Math.PI/180) * Math.cos(latRef),
+    y: R * (p.lat*Math.PI/180)
+  };});
+  var area=0;
+  for(var i=0;i<pts.length;i++){ var j=(i+1)%pts.length; area += pts[i].x*pts[j].y - pts[j].x*pts[i].y; }
+  area = Math.abs(area/2);
+  state.oppervlak = Math.round(area*10)/10;
+  document.getElementById('oppervlakGetal').textContent = state.oppervlak;
+  document.getElementById('puntenGetal').textContent = state.grens.length;
+}
+function wisPolygon(stil){
+  state.grens = []; state.oppervlak = 0;
+  puntMarkers.forEach(function(m){ if(kaartObj) kaartObj.removeLayer(m); }); puntMarkers=[];
+  if(polygonLayer && kaartObj){ kaartObj.removeLayer(polygonLayer); polygonLayer=null; }
+  document.getElementById('oppervlakGetal').textContent='0';
+  document.getElementById('puntenGetal').textContent='0';
+  slaData();
+  if(!stil) toonNotif('Border gewist');
+}
+
+// ---- Foto's (zelfde aanpak als BalkonWijzer) ----
+function verwerkFotos(files, veld){
+  var max = 4;
+  var huidigAantal = state[veld].length;
+  var teVerwerken = Array.prototype.slice.call(files).slice(0, Math.max(0, max-huidigAantal));
+  if(!teVerwerken.length){ toonNotif('Maximaal '+max+' foto\u2019s'); return; }
+  var verwerkt = 0;
+  teVerwerken.forEach(function(file){
+    var reader = new FileReader();
+    reader.onload = function(e){
+      comprimeerFoto(e.target.result, function(dataUrl){
+        state[veld].push(dataUrl);
+        verwerkt++;
+        slaData();
+        renderFotoGrids();
+        if(verwerkt===teVerwerken.length) toonNotif('Foto\u2019s toegevoegd \u2713');
+      });
+    };
+    reader.readAsDataURL(file);
+  });
+}
+function comprimeerFoto(dataUrl, cb){
+  var img = new Image();
+  img.onload = function(){
+    var maxDim = 1000;
+    var w = img.width, h = img.height;
+    if(w>maxDim || h>maxDim){ if(w>h){ h = Math.round(h*maxDim/w); w = maxDim; } else { w = Math.round(w*maxDim/h); h = maxDim; } }
+    var canvas = document.createElement('canvas'); canvas.width=w; canvas.height=h;
+    canvas.getContext('2d').drawImage(img,0,0,w,h);
+    cb(canvas.toDataURL('image/jpeg',0.72));
+  };
+  img.onerror = function(){ cb(dataUrl); };
+  img.src = dataUrl;
+}
+function verwijderFoto(veld, idx){ state[veld].splice(idx,1); slaData(); renderFotoGrids(); }
+function renderFotoGrids(){
+  ['fotosHuidig','fotosInspiratie'].forEach(function(veld){
+    var el = document.getElementById(veld==='fotosHuidig'?'huidigeGrid':'inspiratieGrid');
+    if(!el) return;
+    el.innerHTML = state[veld].map(function(src,i){
+      return '<div class="foto-thumb"><img src="'+src+'"><button class="foto-verwijder" onclick="verwijderFoto(\''+veld+'\','+i+')">&#10005;</button></div>';
+    }).join('');
+  });
+}
+
+function kiesMultiChip(el, groep, tak){
+  tak = tak || 'filters';
+  var w = el.getAttribute('data-w');
+  var arr = state[tak][groep];
+  var idx = arr.indexOf(w);
+  if(idx===-1){ arr.push(w); el.classList.add('actief'); } else { arr.splice(idx,1); el.classList.remove('actief'); }
+}
+function kiesSingleChip(el, groep, tak){
+  tak = tak || 'filters';
+  document.querySelectorAll('.chip[data-w]').forEach(function(c){ if(c.parentElement===el.parentElement) c.classList.remove('actief'); });
+  el.classList.add('actief'); state[tak][groep] = el.getAttribute('data-w');
+  if(groep==='bollen'){ document.getElementById('bolSeizoenChips').style.display = (state.filters.bollen==='ja') ? 'flex' : 'none'; }
+  if(groep==='herhaling'){ document.getElementById('herhalingVelden').style.display = (state.stijl.herhaling==='ja') ? 'block' : 'none'; }
+  if(groep==='borderType'){ document.getElementById('grensAchterVeld').style.display = (state.filters.borderType==='vrij') ? 'block' : 'none'; }
+  slaData();
+}
+document.addEventListener('DOMContentLoaded', function(){
+  var bs = document.getElementById('bolSeizoenChips'); if(bs) bs.style.display='none';
+});
+
+function onderhoudRank(v){ return {laag:1,gemiddeld:2,hoog:3}[v] || 3; }
+
+function genereerShortlist(){
+  state.filters.zonNotitie = document.getElementById('zonNotitie').value.trim();
+  var f = state.filters, s = state.stijl;
+  var maxOnderhoud = onderhoudRank(f.onderhoud);
+  var lijst = PLANTEN.filter(function(p){
+    if(f.licht.length && !p.licht.some(function(l){return f.licht.indexOf(l)!==-1;})) return false;
+    if(f.droogte==='ja' && !p.droogte) return false;
+    if(f.type.length && f.type.indexOf(p.type)===-1) return false;
+    if(onderhoudRank(p.onderhoud) > maxOnderhoud) return false;
+    if(f.hardheid && p.hardheid < parseInt(f.hardheid)) return false;
+    return true;
+  });
+  lijst.forEach(function(p){
+    var score = f.kleur.length ? p.kleur.filter(function(k){return f.kleur.indexOf(k)!==-1;}).length : 0;
+    if(f.vocht==='droog') score += p.droogte ? 2 : -1;
+    else if(f.vocht==='vochtig') score += !p.droogte ? 1 : -1;
+    if(s.ontwerp.length) score += p.stijl.filter(function(x){return s.ontwerp.indexOf(x)!==-1;}).length * 2;
+    if(s.seizoen.length){
+      if(s.seizoen.indexOf('verspreid')!==-1) score += (p.seizoen.length>=2 ? 2 : 0);
+      score += p.seizoen.filter(function(x){return s.seizoen.indexOf(x)!==-1;}).length * 2;
+    }
+    p._score = score;
+  });
+  lijst.sort(function(a,b){ return b._score - a._score; });
+  state.shortlist = lijst.slice(0,20);
+
+  state.bolShortlist = [];
+  if(f.bollen==='ja'){
+    var bl = BOLLEN.filter(function(b){
+      if(f.bolSeizoen.length && f.bolSeizoen.indexOf(b.seizoen)===-1) return false;
+      if(f.licht.length && !b.licht.some(function(l){return f.licht.indexOf(l)!==-1;})) return false;
+      return true;
+    });
+    bl.forEach(function(b){ b._score = f.kleur.length ? b.kleur.filter(function(k){return f.kleur.indexOf(k)!==-1;}).length : 0; });
+    bl.sort(function(a,b){ return b._score - a._score; });
+    state.bolShortlist = bl.slice(0,10);
+  }
+  slaData();
+  renderShortlist();
+  tekenSchema();
+  toonNotif('Offline suggesties gegenereerd \u2713 ('+state.shortlist.length+')');
+}
+
+function renderShortlist(){
+  var el = document.getElementById('plantenLijst');
+  if(!state.shortlist.length){ el.innerHTML='<div style="font-size:.75rem;color:#6a9465;text-align:center;padding:16px">Nog geen suggesties — of vraag direct een AI-ontwerp hierboven</div>'; }
+  else {
+    var h='';
+    state.shortlist.forEach(function(p){
+      h += '<div class="plant-item"><div class="plant-naam">'+esc(p.code)+' &mdash; '+esc(p.naam)+'</div><div class="plant-latijn">'+esc(p.latijn)+'</div>';
+      h += '<div class="plant-meta">Hoogte '+p.hoogte+' cm &middot; plantafstand '+(state.filters.afstandVoorkeur||p.afstand+' cm')+'</div>';
+      h += '<span class="badge badge-rol-'+p.rol+'">'+p.rol+'</span>';
+      p.licht.forEach(function(l){ h += '<span class="badge badge-'+(l==='zon'?'zon':'schaduw')+'">'+l+'</span>'; });
+      if(p.droogte) h += '<span class="badge badge-droogte">droogteresistent</span>';
+      h += '</div>';
+    });
+    el.innerHTML = h;
+  }
+  var bs = document.getElementById('bollenSectie'), bl = document.getElementById('bollenLijst');
+  if(state.bolShortlist.length){
+    bs.style.display='block';
+    var h2='';
+    state.bolShortlist.forEach(function(b){
+      h2 += '<div class="plant-item"><div class="plant-naam">'+esc(b.naam)+'</div>';
+      h2 += '<div class="plant-meta">Hoogte '+b.hoogte+' cm &middot; plantafstand '+(state.filters.afstandVoorkeur||b.afstand+' cm')+' &middot; '+b.seizoen+'sbloeier</div>';
+      h2 += '<span class="badge badge-bol">bolgewas</span></div>';
+    });
+    bl.innerHTML = h2;
+  } else { bs.style.display='none'; }
+}
+
+// Herkent een genummerde plantenlegenda in het geplakte AI-antwoord (bv. "(1) Lavendel",
+// "1. Kattenkruid"), zodat het schema hieronder het werkelijke AI-ontwerp weerspiegelt in
+// plaats van de generieke offline suggesties. Zelfde aanpak als BalkonWijzer/Tegelwippen.
+function parseLegendaUitVoorstel(tekst){
+  if(!tekst) return null;
+  var patroonRegel = /^[\s>*•\u2022-]*[\(\[]?\s*(\d{1,2})\s*[\)\]\.\:\-]\s*(.+)$/;
+  function verwerk(regels){
+    var byNr = {};
+    regels.forEach(function(regel){
+      var m = regel.match(patroonRegel);
+      if(!m) return;
+      var nr = parseInt(m[1],10);
+      if(byNr[nr]) return;
+      var rest = m[2];
+      var haakjeIdx = rest.search(/[\(\[]/);
+      var naamRuw = haakjeIdx!==-1 ? rest.slice(0, haakjeIdx) : rest;
+      var naam = naamRuw.replace(/[*_`]+/g,'').replace(/[-–—:]+$/,'').trim();
+      if(naam.length>=2 && naam.length<=60 && /[a-zA-ZàèéìòóùÀÈÉÌÒÓÙäöüÄÖÜ]/.test(naam)) byNr[nr] = naam;
+    });
+    var lijst = [];
+    for(var n=1; n<=12; n++){ if(byNr[n]) lijst.push({naam: byNr[n]}); else break; }
+    return lijst.length>=3 ? lijst : null;
+  }
+  var regels = tekst.split(/\n+/);
+  var resultaat = verwerk(regels);
+  if(resultaat) return resultaat;
+  var segmenten = [];
+  regels.forEach(function(regel){ regel.split(/[,;|]+/).forEach(function(s){ segmenten.push(s); }); });
+  return verwerk(segmenten);
+}
+
+// ---- Honingraat-schema: hexagons per soort, met vloeiende/golvende driftgrenzen ----
+// (geen rechte banden — de grens tussen soorten meandert, zoals bij Oudolf/Jekyll-schetsen)
+function seedRnd(seed){ var s=seed; return function(){ s=(s*9301+49297)%233280; return s/233280; }; }
+function drawHex(ctx,cx,cy,r,kleur){
+  ctx.beginPath();
+  for(var i=0;i<6;i++){
+    var ang = Math.PI/180*(60*i-90);
+    var x = cx+r*Math.cos(ang), y=cy+r*Math.sin(ang);
+    if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  }
+  ctx.closePath();
+  ctx.fillStyle=kleur; ctx.fill();
+  ctx.strokeStyle='#0f1f0d'; ctx.lineWidth=1; ctx.stroke();
+}
+function drawBoomBlob(ctx,cx,cy,r,kleur,label,rnd){
+  var punten=9, pad=[];
+  for(var i=0;i<punten;i++){ pad.push(r*(0.72+rnd()*0.4)); }
+  ctx.beginPath();
+  for(var i=0;i<=punten;i++){
+    var a=(i/punten)*Math.PI*2, rr=pad[i%punten];
+    var x=cx+Math.cos(a)*rr, y=cy+Math.sin(a)*rr;
+    if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  }
+  ctx.closePath();
+  ctx.fillStyle=kleur; ctx.globalAlpha=.85; ctx.fill(); ctx.globalAlpha=1;
+  ctx.strokeStyle='#0f1f0d'; ctx.lineWidth=1.5; ctx.stroke();
+  ctx.font=Math.round(r*0.85)+'px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('\ud83c\udf33', cx, cy-2);
+  ctx.fillStyle='#132110'; ctx.font='bold 10px monospace'; ctx.fillText(label, cx, cy+r*0.6);
+}
+function tekenSchema(){
+  var canvas = document.getElementById('schemaCanvas');
+  if(!canvas) return;
+  var ctx = canvas.getContext('2d');
+  var dpr = window.devicePixelRatio||1;
+  var cssW = canvas.clientWidth || 300, cssH = 220;
+  canvas.width = cssW*dpr; canvas.height = cssH*dpr; canvas.style.height = cssH+'px';
+  ctx.setTransform(1,0,0,1,0,0); ctx.scale(dpr,dpr);
+  ctx.fillStyle = '#0f1f0d'; ctx.fillRect(0,0,cssW,cssH);
+
+  var soorten = parseLegendaUitVoorstel(state.ontwerpTekst);
+  var gebaseerdOpAI = !!soorten;
+  if(!soorten){
+    if(!state.shortlist.length){ renderLegenda(null, false); return; }
+    soorten = state.shortlist.slice(0,8).map(function(p){ return {naam:p.naam}; });
+  }
+  soorten = soorten.slice(0,10);
+  var n = soorten.length;
+  var kleuren = ['#7c9468','#5f8bc9','#c96a9c','#d9822b','#8b5fa8','#c9524a','#6ec9a8','#e8c070','#a8d470','#70c8e8'];
+  soorten.forEach(function(s,i){ s.kleur = kleuren[i%kleuren.length]; s.boom = /\bboom\b|solitair/i.test(s.naam); s.nr = i+1; });
+
+  var isEiland = state.filters.borderType==='vrij';
+  var seedBase = ((state.project?state.project.naam.length:3)+n)*1.0;
+  var rnd = seedRnd(Math.round(seedBase*97)+13);
+
+  // golvende, organische grens (som van meerdere sinusgolven) i.p.v. een rechte lijn
+  function golf(pos, idx){
+    return 16*Math.sin(pos/68+idx*1.7+seedBase) + 8*Math.sin(pos/31+idx*2.3+seedBase*1.3) + 4*Math.sin(pos/14+idx*0.9+seedBase*0.6);
+  }
+  function soortVoorPositie(x,y){
+    if(n<=1) return soorten[0];
+    if(isEiland){
+      var colIndex=0;
+      for(var k=1;k<n;k++){ if(x>=cssW*k/n+golf(y,k)) colIndex++; }
+      var center=(n-1)/2, d=Math.round(Math.abs(colIndex-center)), rank=Math.max(0,n-1-d);
+      return soorten[Math.min(n-1,rank)];
+    } else {
+      var bandIndex=0;
+      for(var i=1;i<n;i++){ if(cssH*(1-i/n)+golf(x,i) > y) bandIndex++; }
+      return soorten[Math.min(n-1,bandIndex)];
+    }
+  }
+
+  var r = 11, hexW = Math.sqrt(3)*r, hexH = 1.5*r, rowIdx = 0;
+  for(var y=r; y<cssH+r; y+=hexH){
+    var offsetX = (rowIdx%2===0)?0:hexW/2;
+    for(var x=offsetX; x<cssW+hexW; x+=hexW){
+      var s = soortVoorPositie(x,y);
+      if(!s || s.boom) continue;
+      if(rnd()<0.04) continue;
+      var hx = x+(rnd()-0.5)*3, hy = y+(rnd()-0.5)*3;
+      drawHex(ctx, hx, hy, r*(0.84+rnd()*0.14), s.kleur);
+      s._teller = (s._teller||0)+1;
+      if(s._teller % 5 === 1){
+        ctx.font='bold 9px monospace'; ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.lineWidth=2.5; ctx.strokeStyle='#132110'; ctx.strokeText(s.nr, hx, hy);
+        ctx.fillStyle='#fff'; ctx.fillText(s.nr, hx, hy);
+      }
+    }
+    rowIdx++;
+  }
+  ctx.textBaseline='alphabetic';
+
+  soorten.forEach(function(s,idx){
+    if(!s.boom) return;
+    var cx,cy,rad;
+    if(isEiland){
+      var center=(n-1)/2, j=Math.max(0,Math.min(n-1,Math.round(center+(n-1-idx))));
+      cx=cssW*(j+0.5)/n; cy=cssH/2; rad=Math.max(16, Math.min(cssW/n,cssH)/2*0.65);
+    } else {
+      cx=cssW/2+(rnd()-0.5)*cssW*0.25; cy=cssH-cssH*(idx+0.5)/n; rad=Math.max(16,(cssH/n)/2*0.75);
+    }
+    drawBoomBlob(ctx, cx, cy, rad, s.kleur, s.nr, rnd);
+  });
+
+  renderLegenda(soorten, gebaseerdOpAI);
+}
+function renderLegenda(soorten, gebaseerdOpAI){
+  var el = document.getElementById('schemaLegenda');
+  if(!soorten || !soorten.length){
+    el.innerHTML = '<div class="stap-hint">Nog geen schema — vraag een AI-ontwerp met genummerde legenda aan, of genereer eerst offline suggesties.</div>';
+    return;
+  }
+  var isEiland = state.filters.borderType==='vrij';
+  var opbouwTekst = isEiland
+    ? 'Eilandbed: het eerste legenda-item staat aan beide randen (laag), het laatste in het midden (hoog) — de soorten lopen vloeiend in elkaar over, net als bij een natuurlijke driftbeplanting.'
+    : 'Eenzijdige border: de volgorde van onder (voorgrond, laag) naar boven (achtergrond'+(state.filters.borderType?' bij de '+BORDERTYPELABEL[state.filters.borderType]:'')+', hoog) volgt de legenda-volgorde, met golvende, organische overgangen tussen de soorten in plaats van rechte lijnen.';
+  var bron = gebaseerdOpAI ? 'Dit schema neemt de genummerde planten uit je opgeslagen AI-ontwerp exact over.' : 'Nog geen AI-ontwerp opgeslagen — dit is een voorlopig schema op basis van de offline suggesties.';
+  var h = '<div class="stap-hint">'+bron+' '+opbouwTekst+' Voor de exacte compositie, hoogteopbouw en kleurharmonie: zie altijd de volledige tekst van het AI-ontwerp hieronder.</div>';
+  soorten.forEach(function(s){
+    h += '<div class="plant-item" style="border-left-color:'+s.kleur+'"><b>'+s.nr+'</b> &mdash; '+esc(s.naam)+(s.boom?' <span class="badge badge-rol-structuur">boom/solitair</span>':'')+'</div>';
+  });
+  el.innerHTML = h;
+}
+function downloadSchema(){
+  var canvas = document.getElementById('schemaCanvas');
+  var soorten = parseLegendaUitVoorstel(state.ontwerpTekst) || (state.shortlist.length?state.shortlist.slice(0,8):null);
+  if(!canvas || !soorten){ toonNotif('Nog geen schema om te downloaden'); return; }
+  var a = document.createElement('a');
+  a.href = canvas.toDataURL('image/png');
+  a.download = 'borderwijzer_schema.png'; a.click(); toonNotif('Schema gedownload \u2713');
+}
+
+function bouwOntwerpPrompt(){
+  var p = state.project || {naam:'-',grondslag:''};
+  var f = state.filters, s = state.stijl;
+  var planten = state.shortlist.map(function(x){return x.code+' '+x.naam;}).join(', ') || '(nog geen offline suggesties gegenereerd)';
+  var bollen = state.bolShortlist.map(function(x){return x.naam;}).join(', ');
+  var stijlTekst = s.ontwerp.length ? s.ontwerp.map(function(x){return STIJLLABEL[x];}).join(' + ') : 'geen specifieke voorkeur, vrije mix toegestaan';
+  var seizoenTekst = s.seizoen.length ? s.seizoen.map(function(x){return SEIZOENLABEL[x];}).join(', ') : 'gelijk verspreid over het jaar';
+  var aantalFotos = state.fotosHuidig.length + state.fotosInspiratie.length;
+  var txt = 'Begin your response with a short introduction line:\n"Analysis by: [your name and version]"\n\n';
+  txt += 'You are an expert garden designer specializing in Benelux perennial borders (vaste planten borders), well-versed in the styles of Beth Chatto, Gertrude Jekyll, Ton ter Linden, Piet Oudolf and Mien Ruys. Design a planting plan for this border:\n\n';
+  if(aantalFotos) txt += '- '+state.fotosHuidig.length+' photo(s) of the current situation and '+state.fotosInspiratie.length+' inspiration photo(s) are attached — use them to infer existing planting/hardscape, style, materials and colour palette that fit visually; describe briefly what you observe before proposing the design.\n';
+  txt += '- Surface area: '+state.oppervlak+' m\u00b2 (polygon with '+state.grens.length+' corner points)\n';
+  if(s.lengteM) txt += '- Border length: '+s.lengteM+' m\n';
+  if(s.breedteM) txt += '- Border depth (front-to-back): '+s.breedteM+' m\n';
+  txt += '- Soil type: '+(p.grondslag||'not specified')+'\n';
+  txt += '- Light conditions: '+(f.licht.join(', ')||'not specified')+(f.zonNotitie?' (note: '+f.zonNotitie+')':'')+'\n';
+  txt += '- Soil moisture: '+(f.vocht==='geen'?'no preference':f.vocht)+'\n';
+  var borderTypeTekst = f.borderType ? BORDERTYPELABEL[f.borderType] : 'not specified';
+  txt += '- Border background/type: '+borderTypeTekst+(f.borderType==='vrij' ? ' — free-standing island bed, plantable/viewable from both long sides: use a LOW-HIGH-LOW (laag-hoog-laag) height composition, tallest plants in the middle.' : f.borderType ? ' — one-sided border: use a LOW-TO-HIGH (laag-naar-hoog) composition from front to back.' : ' — if unspecified, ask yourself whether it reads as one-sided or free-standing from the other details, or default to low-to-high.') + '\n';
+  txt += '- Adjacent surface at the front: '+(f.grensVoor?GRENSLABEL[f.grensVoor]:'not specified')+'\n';
+  if(f.borderType==='vrij') txt += '- Adjacent surface at the back: '+(f.grensAchter?GRENSLABEL[f.grensAchter]:'not specified')+'\n';
+  txt += '- Desired flower colors: '+(f.kleur.join(', ')||'no preference')+'\n';
+  txt += '- Maintenance preference: '+f.onderhoud+'\n';
+  txt += '- Design style (base plant/condition matching on Beth Chatto\'s "right plant, right place" principle FIRST, then layer the chosen aesthetic style(s) on top; these styles overlap on several points — e.g. Oudolf and Chatto both favour structural, drought-tolerant perennials, while Jekyll and Ter Linden both think in painterly colour gradients — so blend sensibly rather than force a single doctrine): '+stijlTekst+'\n';
+  txt += '- Seasonal accent focus: '+seizoenTekst+'\n';
+  if(s.herhaling==='ja'){
+    txt += '- This border is split into a REPEATING module or separate ZONES (e.g. because conditions differ along its length, such as sun at one end and shade from a tree/building at the other): module/zone length '+(s.moduleLengte||'?')+' m. If conditions genuinely differ per zone, design each zone appropriately rather than forcing one uniform mix.\n';
+  }
+  txt += '- Available shortlist of perennials to use as inspiration (not exhaustive, you may deviate and suggest better-suited species): '+planten+'\n';
+  if(bollen) txt += '- Available bulb shortlist: '+bollen+'\n';
+  if(f.afstandVoorkeur) txt += '- Preferred plant spacing: '+f.afstandVoorkeur+' cm (use this instead of standard advice)\n';
+  txt += '\nProvide:\n\u2022 A concrete layout suggestion (respecting the low-to-high or low-high-low logic above)\n\u2022 Recommended plant spacing per species (cm) if not already fixed above\n\u2022 Approximate quantity per species for the given surface area\n\u2022 Any planting or combination tips\n\nIMPORTANT — end your answer with a NUMBERED legend of the plants you propose, one per line, ordered from front/low to back/high (or edge-to-middle for an island bed), format exactly: "1. Plant name", "2. Plant name", etc. Mark any tree or solitary specimen plant by including the word "boom" or "solitair" in its line. This numbered legend will be parsed automatically to draw a planting diagram, so keep it clean and in that exact format.\n\nAnswer in Dutch.';
+  return txt;
+}
+function kopieerNaarKlembord(txt, stil){
+  return new Promise(function(resolve){
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(txt).then(function(){ if(!stil) toonNotif('Prompt gekopieerd \u2713'); resolve(true); }).catch(function(){ _kopFb(txt, stil); resolve(false); });
+    } else { _kopFb(txt, stil); resolve(false); }
+  });
+}
+function kopieerOntwerpPrompt(){
+  var txt = bouwOntwerpPrompt();
+  kopieerNaarKlembord(txt, true);
+  if(navigator.share){
+    navigator.share({title:'BorderWijzer', text:txt}).then(function(){ toonNotif('Prompt gekopieerd \u2713'); }).catch(function(e){ if(e.name!=='AbortError') toonNotif('Prompt gekopieerd \u2713'); });
+  } else toonNotif('Prompt gekopieerd \u2713');
+}
+function _kopFb(tekst, stil){ var el=document.createElement('textarea'); el.value=tekst; el.style.position='fixed'; el.style.opacity='0'; document.body.appendChild(el); el.focus(); el.select(); try{document.execCommand('copy'); if(!stil) toonNotif('Prompt gekopieerd \u2713');}catch(e){if(!stil) toonNotif('Kopieer handmatig');} document.body.removeChild(el); }
+
+function deelFotosEnPrompt(){
+  var alleFotos = state.fotosHuidig.concat(state.fotosInspiratie);
+  if(!alleFotos.length){ toonNotif('Nog geen foto\u2019s toegevoegd — of gebruik "Alleen tekst"'); return; }
+  var txt = bouwOntwerpPrompt();
+  kopieerNaarKlembord(txt, true);
+  var files = alleFotos.map(function(dataUrl, i){
+    var arr = dataUrl.split(','), mime = arr[0].match(/:(.*?);/)[1], bstr = atob(arr[1]), n = bstr.length, u = new Uint8Array(n);
+    while(n--) u[n] = bstr.charCodeAt(n);
+    return new File([new Blob([u],{type:mime})], 'border_'+i+'.jpg', {type:'image/jpeg'});
+  });
+  if(navigator.share && navigator.canShare && navigator.canShare({files:files})){
+    navigator.share({title:'BorderWijzer', text:txt, files:files}).then(function(){ toonNotif('Gedeeld (tekst ook gekopieerd) \u2713'); }).catch(function(e){ if(e.name!=='AbortError') toonNotif('Delen mislukt'); });
+  } else {
+    toonNotif('Delen met foto\u2019s niet ondersteund op dit toestel — tekst is wel gekopieerd');
+  }
+}
+
+function slaOntwerpOp(){
+  var txt = document.getElementById('ontwerpAntwoord').value.trim();
+  if(!txt){ toonNotif('Plak eerst het AI-antwoord'); return; }
+  state.ontwerpTekst = txt; slaData(); toonOntwerp(); tekenSchema();
+  toonNotif('Ontwerp opgeslagen \u2713');
+}
+function toonOntwerp(){
+  var el = document.getElementById('ontwerpWeergave');
+  if(!state.ontwerpTekst){ el.innerHTML=''; return; }
+  el.innerHTML = '<div class="card" style="margin-top:12px"><div class="label">&#128221; Opgeslagen ontwerp</div><div style="font-size:.75rem;line-height:1.8;white-space:pre-wrap;color:var(--wit)">'+esc(state.ontwerpTekst)+'</div></div>';
+}
+
+function esc(t){ return (t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function exporteerCSV(){
+  if(!state.shortlist.length && !state.bolShortlist.length){ toonNotif('Genereer eerst offline suggesties'); return; }
+  var rijen = [['Code','Naam','Latijnse naam','Rol','Stijl','Type','Licht','Droogteresistent','Kleur','Onderhoud','Hoogte cm','Plantafstand cm']];
+  state.shortlist.forEach(function(p){
+    rijen.push([p.code,p.naam,p.latijn,p.rol,p.stijl.join('/'),p.type,p.licht.join('/'),p.droogte?'ja':'nee',p.kleur.join('/'),p.onderhoud,p.hoogte,state.filters.afstandVoorkeur||p.afstand]);
+  });
+  state.bolShortlist.forEach(function(b){
+    rijen.push(['',b.naam,'','bolgewas ('+b.seizoen+')','', 'bolgewas',b.licht.join('/'),'', b.kleur.join('/'),'', b.hoogte, state.filters.afstandVoorkeur||b.afstand]);
+  });
+  var csv = rijen.map(function(r){ return r.map(function(c){ return '"'+(c+'').replace(/"/g,'""')+'"'; }).join(','); }).join('\n');
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'}));
+  a.download = 'borderwijzer_'+(state.project?state.project.naam.replace(/\s/g,'_'):'export')+'.csv';
+  a.click(); toonNotif('CSV gedownload \u2713');
+}
+function exporteerOntwerp(){
+  if(!state.ontwerpTekst){ toonNotif('Nog geen ontwerp opgeslagen'); return; }
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([state.ontwerpTekst],{type:'text/plain;charset=utf-8'}));
+  a.download = 'borderwijzer_ontwerp.txt'; a.click(); toonNotif('Ontwerp gedownload \u2713');
+}
+
+function genereerPDF(){
+  toonNotif('PDF wordt voorbereid...');
+  tekenSchema();
+  var p = state.project || {naam:'-',datum:'',grondslag:'',gps:''};
+  var nu = new Date().toLocaleDateString('nl-NL',{day:'2-digit',month:'long',year:'numeric'});
+  var css = ['@page{margin:14mm;size:A4;}','body{font-family:"Helvetica Neue",Arial,sans-serif;font-size:10pt;color:#111;background:#fff;margin:0;padding:6mm;}',
+    'h1{font-family:Georgia,serif;font-size:16pt;color:#2d5a27;border-bottom:2px solid #2d5a27;padding-bottom:6px;margin-bottom:8px;}',
+    '.meta{font-size:9pt;color:#555;margin-bottom:12px;line-height:1.7;}',
+    '#pdfKaart{width:100%;height:90mm;border:1px solid #ccc;border-radius:4px;margin-bottom:12px;}',
+    'h2{font-family:Georgia,serif;font-size:12pt;color:#2d5a27;margin:14px 0 6px;border-bottom:1px solid #cfe0c8;padding-bottom:4px;}',
+    'img.schema{width:100%;max-width:600px;border:1px solid #ccc;border-radius:4px;margin-bottom:8px;}',
+    'table{width:100%;border-collapse:collapse;margin-top:6px;font-size:9pt;}','th{background:#eef4ea;color:#2d5a27;padding:4px 8px;text-align:left;border:1px solid #ddd;font-size:8pt;}',
+    'td{padding:5px 8px;border:1px solid #eee;}','tr:nth-child(even) td{background:#fafafa;}',
+    '.voorstel-tekst{white-space:pre-wrap;font-size:9.5pt;line-height:1.7;background:#f5f8f2;padding:10px;border-left:3px solid #2d5a27;border-radius:0 3px 3px 0;}',
+    '.foto-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px;}','.foto-grid img{width:100%;border-radius:4px;border:1px solid #ddd;object-fit:cover;aspect-ratio:1;}',
+    '.footer{text-align:center;font-size:8pt;color:#aaa;margin-top:20px;border-top:1px solid #eee;padding-top:8px;}'].join('');
+  var body = '<h1>BorderWijzer &mdash; '+esc(p.naam)+'</h1>';
+  body += '<div class="meta"><strong>Datum:</strong> '+p.datum+'<br>';
+  if(p.grondslag) body += '<strong>Grondslag:</strong> '+p.grondslag+'<br>';
+  if(p.gps) body += '<strong>GPS:</strong> '+p.gps+'<br>';
+  body += '<strong>Oppervlak:</strong> '+state.oppervlak+' m\u00b2<br>';
+  if(state.filters.borderType) body += '<strong>Achtergrond:</strong> '+BORDERTYPELABEL[state.filters.borderType]+'<br>';
+  body += '</div>';
+  var gpsData = 'null';
+  if(state.grens.length>=3){ body += '<h2>&#128506; Kaart</h2><div id="pdfKaart"></div>'; gpsData = JSON.stringify(state.grens); }
+  var schemaCanvas = document.getElementById('schemaCanvas');
+  if(schemaCanvas){ body += '<h2>&#127807; Beplantingsschema</h2><img class="schema" src="'+schemaCanvas.toDataURL('image/png')+'">'; }
+  var soorten = parseLegendaUitVoorstel(state.ontwerpTekst);
+  if(soorten && soorten.length){
+    body += '<table><tr><th>Nr</th><th>Naam</th></tr>';
+    soorten.forEach(function(s,i){ body += '<tr><td>'+(i+1)+'</td><td>'+esc(s.replace ? s : s.naam || s)+'</td></tr>'; });
+    body += '</table>';
+  }
+  var alleFotos = state.fotosHuidig.concat(state.fotosInspiratie);
+  if(alleFotos.length){
+    body += '<h2>&#128247; Foto\u2019s</h2><div class="foto-grid">'+alleFotos.map(function(src){ return '<img src="'+src+'">'; }).join('')+'</div>';
+  }
+  if(state.ontwerpTekst){ body += '<h2>&#128221; AI-ontwerp</h2><div class="voorstel-tekst">'+esc(state.ontwerpTekst)+'</div>'; }
+  body += '<div class="footer">BorderWijzer &mdash; '+nu+' &mdash; \u00a9 Jan den Hollander</div>';
+  var win = window.open('','_blank','width=1000,height=700');
+  if(!win){ toonNotif('Pop-up geblokkeerd — sta pop-ups toe'); return; }
+  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>BorderWijzer &mdash; '+esc(p.naam)+'</title><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script><style>'+css+'</style></head><body>'+body+
+    '<script>window.onload=function(){var grens='+gpsData+';if(grens&&grens.length>=3&&document.getElementById("pdfKaart")){var k=L.map("pdfKaart",{zoomControl:false,attributionControl:false});L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19}).addTo(k);var latlngs=grens.map(function(p){return [p.lat,p.lng];});var poly=L.polygon(latlngs,{color:"#2d5a27",fillColor:"#4a7c42",fillOpacity:.35}).addTo(k);k.fitBounds(poly.getBounds(),{padding:[20,20]});setTimeout(function(){k.invalidateSize();},250);setTimeout(function(){window.print();},1200);}else{setTimeout(function(){window.print();},400);}};<\/script>'+
+    '</body></html>');
+  win.document.close();
+}
+
+function slaData(){
+  try{ localStorage.setItem('borderwijzer_state', JSON.stringify(state)); }catch(e){ toonNotif('Opslaan mislukt — mogelijk te veel/grote foto\u2019s'); }
+}
+function laadData(){
+  try{
+    var s = localStorage.getItem('borderwijzer_state');
+    if(s){
+      var loaded = JSON.parse(s);
+      state = Object.assign(state, loaded);
+      state.filters = Object.assign({licht:[], vocht:'geen', droogte:'geen', type:[], kleur:[], onderhoud:'hoog', hardheid:0, bollen:'nee', bolSeizoen:[], zonNotitie:'', afstandVoorkeur:'', borderType:'', grensVoor:'', grensAchter:''}, state.filters||{});
+      state.stijl = Object.assign({ontwerp:[], seizoen:[], herhaling:'nee', moduleLengte:'', lengteM:'', breedteM:''}, state.stijl||{});
+      state.fotosHuidig = state.fotosHuidig || []; state.fotosInspiratie = state.fotosInspiratie || [];
+      if(state.project){
+        document.getElementById('projNaam').value = state.project.naam||'';
+        document.getElementById('datumInput').value = state.project.datum||new Date().toISOString().split('T')[0];
+        document.getElementById('grondslagSelect').value = state.project.grondslag||'';
+        document.getElementById('projLabel').textContent = (state.project.naam||'').substring(0,20);
+        if(state.project.gps) document.getElementById('gpsDisplay').textContent = state.project.gps;
+      }
+      document.getElementById('zonNotitie').value = state.filters.zonNotitie||'';
+      document.getElementById('afstandVoorkeur').value = state.filters.afstandVoorkeur||'';
+      document.getElementById('moduleLengteInput').value = state.stijl.moduleLengte||'';
+      document.getElementById('lengteMInput').value = state.stijl.lengteM||'';
+      document.getElementById('breedteMInput').value = state.stijl.breedteM||'';
+      syncChips();
+      renderShortlist();
+      renderFotoGrids();
+      toonOntwerp();
+    }
+  }catch(e){}
+}
+function syncChips(){
+  function syncRow(id, tak, groep, multi){
+    var row = document.getElementById(id); if(!row) return;
+    var val = state[tak][groep];
+    row.querySelectorAll('.chip[data-w]').forEach(function(c){
+      var w = c.getAttribute('data-w');
+      var actief = multi ? (val.indexOf(w)!==-1) : (val===w);
+      c.classList.toggle('actief', actief);
+    });
+  }
+  syncRow('lichtChips','filters','licht',true);
+  syncRow('vochtChips','filters','vocht',false);
+  syncRow('droogteChips','filters','droogte',false);
+  syncRow('typeChips','filters','type',true);
+  syncRow('kleurChips','filters','kleur',true);
+  syncRow('onderhoudChips','filters','onderhoud',false);
+  syncRow('hardheidChips','filters','hardheid',false);
+  syncRow('bollenChips','filters','bollen',false);
+  syncRow('bolSeizoenChips','filters','bolSeizoen',true);
+  syncRow('borderTypeChips','filters','borderType',false);
+  syncRow('grensVoorChips','filters','grensVoor',false);
+  syncRow('grensAchterChips','filters','grensAchter',false);
+  syncRow('ontwerpChips','stijl','ontwerp',true);
+  syncRow('seizoenChips','stijl','seizoen',true);
+  syncRow('herhalingChips','stijl','herhaling',false);
+  document.getElementById('bolSeizoenChips').style.display = state.filters.bollen==='ja'?'flex':'none';
+  document.getElementById('herhalingVelden').style.display = state.stijl.herhaling==='ja'?'block':'none';
+  document.getElementById('grensAchterVeld').style.display = state.filters.borderType==='vrij'?'block':'none';
+}
+function updateExportArchief(){
+  var el = document.getElementById('projArchief');
+  if(state.project){ el.innerHTML = '<div style="color:var(--wit);margin-bottom:4px">'+esc(state.project.naam)+'</div><div>'+state.project.datum+' &mdash; '+state.oppervlak+' m\u00b2, '+(state.fotosHuidig.length+state.fotosInspiratie.length)+' foto\u2019s</div>'; }
+  else el.textContent = 'Geen project actief';
+}
+function verwijderProject(){
+  if(!confirm('Huidig project wissen? Exporteer eerst!')) return;
+  state = {project:null, grens:[], oppervlak:0, fotosHuidig:[], fotosInspiratie:[],
+    filters:{licht:[], vocht:'geen', droogte:'geen', type:[], kleur:[], onderhoud:'hoog', hardheid:0, bollen:'nee', bolSeizoen:[], zonNotitie:'', afstandVoorkeur:'', borderType:'', grensVoor:'', grensAchter:''},
+    stijl:{ontwerp:[], seizoen:[], herhaling:'nee', moduleLengte:'', lengteM:'', breedteM:''},
+    shortlist:[], bolShortlist:[], ontwerpTekst:''};
+  localStorage.removeItem('borderwijzer_state');
+  document.getElementById('projLabel').textContent='Geen project';
+  updateExportArchief(); renderShortlist(); renderFotoGrids(); toonOntwerp(); toonNotif('Project gewist');
+}
+
+function toonNotif(t){ var n=document.getElementById('notif'); n.textContent=t; n.classList.add('zichtbaar'); setTimeout(function(){n.classList.remove('zichtbaar');},2400); }
+</script>
+
+<!-- ① ZICHTBARE FOOTER -->
+<div id="jdh-copyright-footer" style="position:fixed;bottom:0;left:0;right:0;background:rgba(0,0,0,0.82);color:#ccc;font-size:11px;text-align:center;padding:4px 8px;z-index:99999;font-family:sans-serif;letter-spacing:0.3px;user-select:none;">
+  © <span id="jdh-year"></span> Jan den Hollander &nbsp;|&nbsp;
+  <span id="jdh-project-title" style="color:#7eb8f7"></span> &nbsp;|&nbsp;
+  Vrij gebruik · niet-commercieel · ongewijzigd &nbsp;|&nbsp;
+  <span style="color:#aaa; cursor:pointer; text-decoration:underline" onclick="document.getElementById('jdh-modal').style.display='flex'">ℹ️ Licentie</span>
+</div>
+
+<!-- ② LICENTIE MODAL -->
+<div id="jdh-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:999999; align-items:center; justify-content:center;">
+  <div style="background:#1a1a2e; color:#e0e0e0; border:1px solid #444; border-radius:10px; max-width:480px; width:90%; padding:24px; font-family:sans-serif; font-size:13px; line-height:1.6;">
+    <h3 style="color:#7eb8f7; margin-top:0">© Jan den Hollander &nbsp;·&nbsp; <span id="jdh-modal-title" style="font-weight:normal;font-size:12px"></span></h3>
+    <p>Dit hulpmiddel is <strong>gratis</strong> en mag vrij worden gedeeld, uitsluitend <strong>ongewijzigd</strong> en voor <strong>niet-commerciële</strong> doeleinden, met bronvermelding.</p>
+    <p>Commercieel gebruik, wijziging of verkoop is <strong>verboden</strong> zonder schriftelijke toestemming. Het gebruik van naam of projecttitel impliceert geen toestemming en vormt bij commercieel gebruik een zelfstandige auteursrechtinbreuk.</p>
+    <p style="color:#aaa;font-size:11px">This tool is free and may be shared freely, unmodified, for non-commercial purposes only, with attribution.<br><br>Quest'opera è gratuita e può essere condivisa liberamente, senza modifiche, per scopi non commerciali, con attribuzione.</p>
+    <p style="margin-bottom:4px">📧 <a href="mailto:jandenhollander@duck.com" style="color:#7eb8f7">jandenhollander@duck.com</a></p>
+    <p style="margin-top:4px;margin-bottom:0">🔗 <a href="https://github.com/Jan-den-Hollander" target="_blank" style="color:#7eb8f7">github.com/Jan-den-Hollander</a></p>
+    <button onclick="document.getElementById('jdh-modal').style.display='none'" style="margin-top:16px;padding:8px 20px;background:#7eb8f7;color:#000;border:none;border-radius:6px;cursor:pointer;font-weight:bold;">Sluiten</button>
+  </div>
+</div>
+
+<!-- ③ INTEGRITEITSCHECK + URL-CHECK -->
+<script>
+(function() {
+  'use strict';
+  var projectName = document.title || 'Onbekend project';
+  var yearEl = document.getElementById('jdh-year'); if (yearEl) yearEl.textContent = new Date().getFullYear();
+  var titleEl = document.getElementById('jdh-project-title'); if (titleEl) titleEl.textContent = projectName;
+  var modalTitleEl = document.getElementById('jdh-modal-title'); if (modalTitleEl) modalTitleEl.textContent = projectName;
+
+  var ALLOWED = ['localhost','127.0.0.1','jan-den-hollander.github.io','borderwijzer.vercel.app','borderwijzer','claude.ai','stackblitz.io','stackblitz.com'];
+  function domainAllowed() {
+    var host = window.location.hostname.toLowerCase(); var proto = window.location.protocol;
+    if (proto === 'file:' || proto === 'content:') return true;
+    if (!host || host === '') return true;
+    return ALLOWED.some(function(a){ return host === a || host.endsWith('.' + a) || host.indexOf(a) !== -1; });
+  }
+  function warnDomain() {
+    var banner = document.createElement('div'); banner.id = 'jdh-domain-warning';
+    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99998;background:#8a2010;color:#fff;font-family:sans-serif;font-size:12px;text-align:center;padding:8px 12px;line-height:1.5;';
+    banner.innerHTML = '⚠️ <strong>' + projectName + '</strong> draait op een niet-erkend domein (<em>' + window.location.hostname + '</em>). Origineel: <a href="https://github.com/Jan-den-Hollander" target="_blank" style="color:#ffccaa">github.com/Jan-den-Hollander</a> · <a href="mailto:jandenhollander@duck.com" style="color:#ffccaa">jandenhollander@duck.com</a>';
+    document.body.insertBefore(banner, document.body.firstChild);
+  }
+  if (!domainAllowed()) { setTimeout(warnDomain, 800); }
+
+  function blockApp() {
+    document.body.innerHTML = '';
+    document.body.style.cssText = 'margin:0;background:#111;display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;';
+    document.body.innerHTML = '<div style="text-align:center;color:#e55;max-width:440px;padding:24px"><div style="font-size:52px">⛔</div><h2 style="color:#e55;margin:12px 0 8px">Toegang geblokkeerd</h2><p style="color:#ddd;font-size:14px">De copyright-informatie van <strong style="color:#7eb8f7">' + projectName + '</strong> is verwijderd of gewijzigd.</p><hr style="border-color:#333;margin:16px 0"><p style="color:#ccc;font-size:13px">© Jan den Hollander</p><p><a href="mailto:jandenhollander@duck.com" style="color:#7eb8f7;font-size:12px">jandenhollander@duck.com</a></p><p><a href="https://github.com/Jan-den-Hollander" target="_blank" style="color:#7eb8f7;font-size:12px">🔗 github.com/Jan-den-Hollander</a></p></div>';
+  }
+  function checkIntegrity() {
+    var footer = document.getElementById('jdh-copyright-footer'); var modal = document.getElementById('jdh-modal');
+    if (!footer || !modal) { blockApp(); return; }
+    var fs = window.getComputedStyle(footer);
+    if (fs.display === 'none' || fs.visibility === 'hidden' || fs.opacity === '0') { footer.style.cssText += ';display:block!important;visibility:visible!important;opacity:1!important'; }
+  }
+  checkIntegrity(); setInterval(checkIntegrity, 3000);
+  var observer = new MutationObserver(function(mutations) {
+    mutations.forEach(function(m) { m.removedNodes.forEach(function(node) { if (node.id === 'jdh-copyright-footer' || node.id === 'jdh-modal') blockApp(); }); });
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
+})();
+</script>
+</body>
+</html>
